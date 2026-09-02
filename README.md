@@ -1,169 +1,135 @@
 # Sistema de Gestión Integral para Estudios Jurídicos
 
-## 📋 Descripción General
+Aplicación web para la gestión integral de un estudio jurídico: administra causas y su
+documentación, calcula y vigila plazos procesales, controla costas y cobros, organiza el
+trabajo del equipo y registra auditoría completa. Incorpora asistencia con IA para el
+análisis de textos legales y como apoyo a la búsqueda de jurisprudencia.
 
-Sistema integral de gestión para estudios jurídicos argentinos. Una solución moderna y escalable que automatiza la gestión de juicios, plazos procesales, costas, equipo de trabajo y generación de documentos, integrando tecnología de IA para análisis legales y búsqueda de jurisprudencia.
+- **Mercado inicial:** Provincia de Córdoba, Argentina.
+- **Arquitectura:** preparada para configurar otras provincias (días inhábiles y formatos de
+  tribunales configurables); el MVP se valida solo con Córdoba.
+- **Estado:** en desarrollo — Versión 0.1.0 (MVP, Fase 1).
 
-**Mercado Inicial:** Provincia de Córdoba, Argentina  
-**Arquitectura:** Escalable hacia otras provincias argentinas
-
----
-
-## 🎯 Objetivo
-
-Automatizar la gestión integral de juicios y procesos legales para estudios jurídicos, eliminando procesos manuales, centralizando información y potenciando la toma de decisiones mediante herramientas de IA.
-
----
-
-## 📊 Análisis de Campo
-
-### Hallazgos Preliminares
-
-- ✗ Gestión manual de plazos procesales (sin automatización)
-- ✗ Necesidad de control de costas procesales y cobro de honorarios
-- ✗ Falta de centralización de documentos e información de causas
-- ✗ Demanda por herramientas para búsqueda de jurisprudencia
-- ✗ Poco conocimiento sobre IA en la profesión legal
+> **Trabajo Final Integrador** — Tecnicatura Universitaria en Programación a Distancia.
+> Propuesta completa de la 1.ª entrega en [`docs/propuesta-proyecto.md`](docs/propuesta-proyecto.md).
 
 ---
 
-## 🚀 Fase 1: MVP (Mínimo Viable)
+## Integrantes
 
-### Funcionalidades Principales
+| Integrante | GitHub |
+|---|---|
+| Martín Maine | [@martinmaine](https://github.com/martinmaine) |
+| Gevont Utzmazian | [@gevontutmazian](https://github.com/gevontutmazian) |
 
-#### 📑 Gestión de Juicios
-- CRUD completo de juicios y causas
-- Gestión de partes e información de profesionales
-- Upload de PDFs con extracción automática a texto
-- Centralización de documentación
-
-#### ⏰ Gestión de Plazos
-- Cálculo automático de plazos con días hábiles
-- Sincronización con calendario judicial de Justicia Córdoba
-- Calendario compartido del estudio
-- Alertas inteligentes multi-nivel (crítica, importante, informativa)
-
-#### 💰 Gestión de Costas
-- Registro y seguimiento de costas procesales
-- Control de cobros pendientes
-- Reportes de gastos
-
-#### 🛠️ Herramientas Operativas
-- Banco de plantillas por tipo de escrito y tribunal
-- Sistema de tareas y delegación entre empleados
-- Sincronización lectura del Poder Judicial (consulta de movimientos)
-- Sistema de roles y permisos (Super Admin, Admin, Jefe Estudio, Empleado)
-
-#### 🔒 Seguridad y Auditoría
-- Auditoría completa: registro de accesos, usuario, fecha y hora
-- Sistema de roles y permisos granular
-- Encriptación de datos sensibles
+**Tutor:** Sergio Andrés Antonini
 
 ---
 
-## 💻 Stack Tecnológico
+## Problema que resuelve
 
-| Capa | Tecnología |
-|------|-----------|
-| **Frontend** | Angular + TypeScript |
-| **Portales Cliente** | React + TypeScript |
-| **Backend** | Node.js + Express |
-| **Base de Datos** | PostgreSQL |
-| **Conversor PDF** | Python + pdfplumber |
-| **IA** | Claude API (Anthropic) |
-| **Autenticación** | JWT + Passport.js |
-| **Hosting** | Docker + AWS/DigitalOcean |
+Los estudios jurídicos pequeños y medianos de Córdoba gestionan decenas de causas en
+paralelo con herramientas manuales y fragmentadas (planillas, agendas de papel, calendarios
+personales, documentación dispersa, mensajería informal). Esto genera riesgo de vencimiento
+de plazos procesales perentorios, pérdida de tiempo profesional en tareas administrativas,
+costas y honorarios mal controlados y ausencia de trazabilidad sobre quién hizo qué y cuándo.
 
----
-
-## 🔧 Escalabilidad
-
-### Multi-Provincia
-- Configuración adaptable de días inhábiles por provincia
-- Formatos de tribunales configurable
-
-### Arquitectura Modular
-- Microservicios independientes (PDF converter, calculador de plazos, notificaciones)
-- API para integraciones externas (sistemas de tribunales, contabilidad, etc.)
+El detalle del análisis del problema, los actores, la propuesta de valor, el análisis de
+competencia, la justificación del stack, el plan de trabajo y la viabilidad están en
+[`docs/propuesta-proyecto.md`](docs/propuesta-proyecto.md).
 
 ---
 
-## 📈 Fases de Desarrollo
+## Alcance del MVP (Fase 1)
 
-### Fase 1: MVP ✅ (Actual)
-Funcionalidades esenciales de gestión y automatización de procesos.
+- **Gestión de causas:** CRUD, partes y profesionales, carga de PDF con extracción de texto,
+  repositorio documental por causa.
+- **Gestión de plazos:** cálculo automático con días hábiles, calendario de días inhábiles y
+  feria judicial de Córdoba configurable, calendario compartido del estudio, alertas
+  multinivel (crítica / importante / informativa).
+- **Gestión de costas:** registro y seguimiento de costas procesales, control de cobros
+  pendientes, reporte de gastos exportable.
+- **Operación:** banco de plantillas de escritos por tipo y tribunal, tareas y delegación
+  entre integrantes, registro de movimientos del Poder Judicial (carga manual / importación),
+  roles y permisos (Super Admin, Admin, Jefe de Estudio, Empleado).
+- **Seguridad y auditoría:** registro de auditoría de acciones sensibles, permisos granulares
+  por rol, cifrado de datos sensibles.
 
-### Fase 2: Avanzada 🔜
-- Historial unificado de comunicación con clientes (email, WhatsApp, teléfono)
-- CRM completo: datos de clientes y historial de casos
-- Dashboard ejecutivo para jefes de estudio (KPIs, tasas de victoria)
-- Sistema de facturación y honorarios
-- Búsqueda avanzada de jurisprudencia (SAIJ + bases locales)
+### Fuera de alcance del MVP
 
-### Fase 3: Ecosistema Completo 🎯
-- Generador de escritos con IA
-- Predicción de resultados basada en ML
-- App móvil para abogados en terreno
-- Marketplace de peritos y profesionales
-- Integración automática con Poder Judicial
-
----
-
-## 💡 Valor Estratégico
-
-### Automatización
-Elimina procesos manuales que actualmente consumen recursos significativos.
-
-### Centralización
-Sistematiza información dispersa en múltiples soportes.
-
-### Control
-Implementa controles y trazabilidad completa de causas y operaciones.
-
-### Inteligencia
-Genera capacidades analíticas para la toma de decisiones.
+Facturación / AFIP · CRM e historial de comunicaciones · dashboard de KPIs · búsqueda
+avanzada de jurisprudencia (SAIJ + bases locales) · generación de escritos con IA ·
+predicción con ML · app móvil · marketplace de peritos · integración automática de escritura
+con el Poder Judicial · portal de cliente · operación multi-provincia activa.
 
 ---
 
-## 👥 Autores
+## Tecnologías
 
-- **Martín Maine**
-- **Gevont Utzmazian**
+| Capa | Tecnología | Despliegue |
+|---|---|---|
+| Frontend (SPA) | React + TypeScript (Vite) | Vercel |
+| Backend / API REST | Node.js + Express + TypeScript | Render |
+| Base de datos | PostgreSQL | Neon (alternativa: Supabase) |
+| Microservicio PDF → texto | Python + FastAPI + `pdfplumber` | Render (servicio separado) |
+| IA | Claude API (Anthropic) | SaaS externo (opcional) |
+| Autenticación | JWT + Passport.js | — |
+| Entorno local | Docker + Docker Compose | — |
+| Control de versiones y gestión | Git + GitHub + GitHub Projects | GitHub |
+
+La justificación de cada elección está en la Sección 5 de la propuesta.
 
 ---
 
-## 📝 Conclusión
+## Estructura del repositorio
 
-Este sistema representa una solución integral y escalable para modernizar la gestión de estudios jurídicos argentinos. Comenzando con un MVP robusto en Córdoba, sienta las bases para una plataforma que puede expandirse regionalmente y competir con soluciones internacionales, siempre manteniendo adaptabilidad a la regulación y procedimientos legales locales.
-El presente proyecto propone el desarrollo e implementación completa de la Fase 1 (MVP) del Sistema de Gestión Integral para Estudios Jurídicos. Esta fase constituye el núcleo funcional de la plataforma y establece los cimientos arquitectónicos sobre los cuales se construirán las expansiones futuras.
+```
+sistemalegal/
+├── README.md              # Este archivo
+├── docs/                  # Informes y entregas (propuesta, diseño de BD, etc.)
+├── frontend/              # Aplicación React + TypeScript
+├── backend/               # API Node.js + Express + TypeScript (monolito modular)
+├── pdf-service/           # Microservicio Python (conversión PDF → texto)
+├── db/                    # Scripts DDL/DML, migraciones y datos de prueba
+└── docker-compose.yml     # Orquestación del entorno local
+```
 
-La Fase 1 no solo representa un producto mínimamente viable, sino que funciona como un esqueleto modular y escalable que proporciona a los estudios jurídicos un conjunto comprehensivo de herramientas de modernización operativa. Su implementación garantiza:
+> El código y los scripts se irán incorporando a partir del Sprint 0. Las carpetas anteriores
+> son la estructura objetivo declarada para la 1.ª entrega.
 
-Valor Estratégico:
+---
 
-•	Automatización integral de procesos manuales que actualmente consumen recursos significativos
-•	Centralización y sistematización de información dispersa en múltiples soportes
-•	Implementación de controles y trazabilidad completa de causas y operaciones
-•	Generación de capacidades analíticas para la toma de decisiones
+## Instalación (entorno local)
 
-Viabilidad Técnica:
+> Instrucciones preliminares. Se completarán cuando exista código en el repositorio.
 
-•	Arquitectura robusta y modular que permite escalamiento sin rediseños mayores
-•	Tecnologías consolidadas y de amplio soporte en el mercado
-•	Separación clara de responsabilidades entre componentes (Frontend, Backend, BD)
-•	Capacidad de integración con sistemas externos presentes y futuros
+Requisitos: [Docker](https://www.docker.com/) y Docker Compose.
 
-Alcance Realista:
+```bash
+git clone https://github.com/martinmaine/sistemalegal.git
+cd sistemalegal
+cp .env.example .env      # completar variables (BD, JWT_SECRET, CLAUDE_API_KEY opcional)
+docker compose up
+```
 
-•	Funcionalidades esenciales que resuelven los principales puntos de dolor identificados
-•	Scope definido que permite completar desarrollo en timeframe académico.
-•	Base sólida para posteriores expansiones (Fases 2 y 3) sin deuda técnica
+Esto levantará el frontend, el backend, el microservicio PDF y una base PostgreSQL con datos
+de prueba ficticios.
 
-Por estas razones, la realización completa de la Fase 1 constituye el objetivo óptimo para este trabajo final, balanceando ambición técnica con viabilidad práctica.
+---
 
+## Hoja de ruta (fechas de la cátedra)
 
+| Hito | Fecha máxima | Entregable |
+|---|---|---|
+| 1.ª Entrega — Propuesta + repositorio | 30/08 | `docs/propuesta-proyecto.md` + URL del repo |
+| 2.ª Entrega — Diseño y módulos (Regular) | 27/09 | Esquema de base de datos + listado de módulos |
+| Entrega Final — Informe + video + despliegue | 14/11 | Repo completo, despliegue online, informe y video (preferentemente en inglés) |
+| Defensa Oral | Mesa de examen | Presentación ante el comité |
 
+El cronograma detallado por sprints está en la Sección 6 de la propuesta.
 
-**Estado del Proyecto:** En Desarrollo  
-**Versión:** 0.1.0 (MVP)  
-**Última Actualización:** 30/08/2026
+---
+
+## Licencia
+
+Proyecto académico — Trabajo Final Integrador. Uso educativo.
