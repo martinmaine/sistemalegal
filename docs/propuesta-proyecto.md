@@ -10,7 +10,7 @@
 |---|---|
 | **Asignatura** | Trabajo Final Integrador — Tecnicatura Universitaria en Programación a Distancia |
 | **Duración** | 1 cuatrimestre |
-| **Integrantes** | Martín Maine (GitHub: `@martinmaine`) · Gevont Utzmazian (GitHub: `@gevontutmazian`) |
+| **Integrantes** | Martín Maine (GitHub: `@martinmaine`) · Gevont Utmazian (GitHub: `@gevontutmazian8`) |
 | **Tutor** | Sergio Andrés Antonini |
 | **Repositorio único** | https://github.com/martinmaine/sistemalegal |
 | **Tipo de caso** | Inventiva propia / caso simulado, sobre una problemática real y local (estudios jurídicos de la Provincia de Córdoba) |
