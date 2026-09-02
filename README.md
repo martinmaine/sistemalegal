@@ -20,7 +20,7 @@ análisis de textos legales y como apoyo a la búsqueda de jurisprudencia.
 | Integrante | GitHub |
 |---|---|
 | Martín Maine | [@martinmaine](https://github.com/martinmaine) |
-| Gevont Utzmazian | [@gevontutmazian](https://github.com/gevontutmazian8) |
+| Gevont Utmazian | [@gevontutmazian](https://github.com/gevontutmazian8) |
 
 **Tutor:** Sergio Andrés Antonini
 
