@@ -8,10 +8,13 @@ análisis de textos legales y como apoyo a la búsqueda de jurisprudencia.
 - **Mercado inicial:** Provincia de Córdoba, Argentina.
 - **Arquitectura:** preparada para configurar otras provincias (días inhábiles y formatos de
   tribunales configurables); el MVP se valida solo con Córdoba.
-- **Estado:** en desarrollo — Versión 0.1.0 (MVP, Fase 1).
+- **Estado:** en desarrollo — Versión 0.1.0 (MVP, Fase 1). Esquema de base de datos
+  y módulos definidos (2.ª entrega); implementación a partir del Sprint S0.
 
 > **Trabajo Final Integrador** — Tecnicatura Universitaria en Programación a Distancia.
-> Propuesta completa de la 1.ª entrega en [`docs/propuesta-proyecto.md`](docs/propuesta-proyecto.md).
+>
+> - 1.ª entrega — propuesta: [`docs/propuesta-proyecto.md`](docs/propuesta-proyecto.md)
+> - 2.ª entrega — diseño de base de datos y módulos: [`docs/entrega-2-diseno-y-modulos.md`](docs/entrega-2-diseno-y-modulos.md)
 
 ---
 
@@ -86,16 +89,24 @@ La justificación de cada elección está en la Sección 5 de la propuesta.
 ```
 sistemalegal/
 ├── README.md              # Este archivo
-├── docs/                  # Informes y entregas (propuesta, diseño de BD, etc.)
-├── frontend/              # Aplicación React + TypeScript
-├── backend/               # API Node.js + Express + TypeScript (monolito modular)
-├── pdf-service/           # Microservicio Python (conversión PDF → texto)
-├── db/                    # Scripts DDL/DML, migraciones y datos de prueba
-└── docker-compose.yml     # Orquestación del entorno local
+├── docs/                  # Informes y entregas
+│   ├── propuesta-proyecto.md           # 1.ª entrega
+│   ├── entrega-2-diseno-y-modulos.md   # 2.ª entrega: esquema de BD + módulos
+│   └── generar-diccionario.py          # Regenera el diccionario de datos desde el DDL
+├── db/                    # Esquema PostgreSQL          ← disponible
+│   ├── migrations/        # Migraciones versionadas (fuente de verdad)
+│   ├── seed/              # Catálogos base y datos ficticios de demostración
+│   ├── schema.sql         # Esquema consolidado (generado)
+│   ├── generar-schema.py  # Regenera schema.sql
+│   └── verificar.py       # Verifica el esquema sin necesidad de PostgreSQL
+├── frontend/              # Aplicación React + TypeScript              (pendiente)
+├── backend/               # API Node.js + Express + TypeScript          (pendiente)
+├── pdf-service/           # Microservicio Python (conversión PDF → texto) (pendiente)
+└── docker-compose.yml     # Orquestación del entorno local              (pendiente)
 ```
 
-> El código y los scripts se irán incorporando a partir del Sprint 0. Las carpetas anteriores
-> son la estructura objetivo declarada para la 1.ª entrega.
+> `db/` y `docs/` corresponden a las entregas ya realizadas. Las carpetas marcadas
+> como pendientes se incorporan a partir del Sprint S0.
 
 ---
 
@@ -115,16 +126,29 @@ docker compose up
 Esto levantará el frontend, el backend, el microservicio PDF y una base PostgreSQL con datos
 de prueba ficticios.
 
+### Solo la base de datos (disponible ahora)
+
+Mientras no exista el `docker-compose`, el esquema puede crearse con PostgreSQL 13 o superior:
+
+```bash
+createdb sistemalegal
+psql -d sistemalegal -f db/schema.sql
+psql -d sistemalegal -f db/seed/001_catalogos.sql
+psql -d sistemalegal -f db/seed/002_datos_demo.sql
+```
+
+Detalle completo, usuarios de demostración y advertencias en [`db/README.md`](db/README.md).
+
 ---
 
 ## Hoja de ruta (fechas de la cátedra)
 
-| Hito | Fecha máxima | Entregable |
-|---|---|---|
-| 1.ª Entrega — Propuesta + repositorio | 30/08 | `docs/propuesta-proyecto.md` + URL del repo |
-| 2.ª Entrega — Diseño y módulos (Regular) | 27/09 | Esquema de base de datos + listado de módulos |
-| Entrega Final — Informe + video + despliegue | 14/11 | Repo completo, despliegue online, informe y video (preferentemente en inglés) |
-| Defensa Oral | Mesa de examen | Presentación ante el comité |
+| Hito | Fecha máxima | Entregable | Estado |
+|---|---|---|---|
+| 1.ª Entrega — Propuesta + repositorio | 30/08 | `docs/propuesta-proyecto.md` + URL del repo | ✅ Entregado |
+| 2.ª Entrega — Diseño y módulos (Regular) | 27/09 | `docs/entrega-2-diseno-y-modulos.md` + `db/` | ✅ Entregado |
+| Entrega Final — Informe + video + despliegue | 14/11 | Repo completo, despliegue online, informe y video (preferentemente en inglés) | Pendiente |
+| Defensa Oral | Mesa de examen | Presentación ante el comité | Pendiente |
 
 El cronograma detallado por sprints está en la Sección 6 de la propuesta.
 
