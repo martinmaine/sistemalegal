@@ -1441,12 +1441,27 @@ esquema**: no hay facturación, ni CRM, ni portal de cliente, ni KPIs.
 
 ### 16.1. El esquema se ejecuta: prueba de humo
 
-El esquema **se aplicó efectivamente sobre PostgreSQL 18.3** y se comprobó que
-las reglas declaradas hagan su trabajo. No hizo falta instalar PostgreSQL ni
-Docker: se usó [PGlite](https://pglite.dev/), que es PostgreSQL compilado a
-WebAssembly y corre dentro de Node.
+El esquema **se aplicó efectivamente sobre la instancia de Neon del proyecto**
+—PostgreSQL 18.6— y se comprobó que las reglas declaradas hagan su trabajo. Las
+68 comprobaciones pasaron, y la base quedó luego en el mismo estado en que se la
+encontró.
 
-Reproducible con `node db/probar.mjs` (ver [`../db/README.md`](../db/README.md)).
+La misma batería corre en dos modos:
+
+| Modo | Motor | Para qué |
+|---|---|---|
+| Local (por omisión) | PGlite — PostgreSQL 18.3 compilado a WebAssembly | Control rápido, sin instalar PostgreSQL ni Docker. 67 comprobaciones. |
+| Remoto | La base real, vía `DATABASE_URL` | Verificación contra el motor de despliegue. 68 comprobaciones (la extra confirma la limpieza). |
+
+```bash
+node db/probar.mjs                                    # local
+DATABASE_URL="postgresql://..." node db/probar.mjs    # contra Neon o Supabase
+```
+
+El modo remoto **se niega a correr si la base ya tiene tablas**, porque carga
+datos de demostración y borra una causa para probar `ON DELETE CASCADE`. Con
+`--limpiar` deshace todo lo que creó. Detalle en
+[`../db/README.md`](../db/README.md).
 
 | Grupo | Comprobaciones | Resultado |
 |---|---|---|
@@ -1457,6 +1472,7 @@ Reproducible con `node db/probar.mjs` (ver [`../db/README.md`](../db/README.md))
 | **La base rechaza datos inválidos** | 11 | Los 11 intentos fueron rechazados |
 | Comportamientos que deben funcionar | 14 | Correctos |
 | Portabilidad entre proveedores (ver §16.2) | 5 | Correcta |
+| La base vuelve al estado inicial (solo modo remoto) | 1 | 0 tablas al terminar |
 | | **68** | **0 fallas** |
 
 Los once intentos de escritura inválida que la base rechazó:
@@ -1533,13 +1549,18 @@ debajo de lo que ofrecen.
 
 ### 16.4. Lo que todavía **no** se verificó
 
-> PGlite es PostgreSQL de verdad (18.3) y se cubrió la diferencia de esquemas
-> entre proveedores, pero **no es el mismo binario que se va a desplegar**. Queda
-> pendiente para el **Sprint S0** repetir la prueba contra la instancia de Neon
-> del proyecto y contra el `docker-compose` del entorno local.
+> El esquema ya se ejecutó contra la instancia de Neon del proyecto (§16.1), así
+> que la duda sobre el motor de despliegue está resuelta. Queda pendiente para el
+> **Sprint S0** repetir la prueba contra el `docker-compose` del entorno local,
+> y —si alguna vez se activa la alternativa Supabase— contra una base Supabase
+> real, ya que hasta ahora ese caso se cubrió simulándolo (§16.2).
 >
-> Tampoco se probó el **motor de cómputo de plazos**: todavía no existe, se
-> implementa en el Sprint S2 con sus 10+ casos de prueba.
+> No se probó el **motor de cómputo de plazos**: todavía no existe, se implementa
+> en el Sprint S2 con sus 10+ casos de prueba.
+>
+> El esquema tampoco se probó **con volumen**: los índices se diseñaron a partir
+> de las consultas previstas (§8), pero no se midieron planes de ejecución con
+> datos de tamaño realista.
 
 ---
 

@@ -99,7 +99,7 @@ sistemalegal/
 │   ├── schema.sql         # Esquema consolidado (generado)
 │   ├── generar-schema.py  # Regenera schema.sql
 │   ├── verificar.py       # Verificación estructural, sin ejecutar
-│   └── probar.mjs         # Prueba de humo: 63 comprobaciones sobre PostgreSQL real
+│   └── probar.mjs         # Prueba de humo sobre PostgreSQL real (local o Neon)
 ├── frontend/              # Aplicación React + TypeScript              (pendiente)
 ├── backend/               # API Node.js + Express + TypeScript          (pendiente)
 ├── pdf-service/           # Microservicio Python (conversión PDF → texto) (pendiente)
@@ -148,6 +148,9 @@ reglas declaradas rechacen los datos inválidos. Solo requiere Node:
 ```bash
 cd db && npm install && cd .. && node db/probar.mjs
 ```
+
+El mismo script corre contra una base real pasándole `DATABASE_URL`. El esquema ya se
+verificó así contra la instancia de Neon del proyecto. Ver [`db/README.md`](db/README.md).
 
 ---
 

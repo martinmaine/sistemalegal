@@ -1,33 +1,54 @@
 // =============================================================================
 // probar.mjs — Prueba de humo del esquema contra PostgreSQL real
 //
-// Aplica las migraciones y los seeds sobre una instancia efimera de PostgreSQL
-// y comprueba tres cosas:
+// Aplica las migraciones y los seeds y comprueba tres cosas:
 //   1. que el esquema se cree sin errores,
 //   2. que los seeds carguen los datos esperados,
 //   3. que las reglas declaradas (CHECK, triggers, indices unicos, claves
 //      foraneas) efectivamente RECHACEN los datos invalidos.
 //
-// Usa PGlite: PostgreSQL compilado a WebAssembly. No requiere instalar
-// PostgreSQL ni Docker, solo Node.
+// -----------------------------------------------------------------------------
+// DOS MODOS
+// -----------------------------------------------------------------------------
 //
-// Uso (desde la raiz del repositorio):
-//     cd db && npm install && cd ..
-//     node db/probar.mjs .
+// A) LOCAL (por omision). Usa PGlite: PostgreSQL compilado a WebAssembly.
+//    No requiere instalar PostgreSQL ni Docker, solo Node.
+//
+//        node db/probar.mjs
+//
+// B) REMOTO. Corre las mismas comprobaciones contra una base PostgreSQL real
+//    (Neon, Supabase, Docker...) a traves de su connection string.
+//
+//        DATABASE_URL="postgresql://usuario:clave@host/base?sslmode=require" \
+//          node db/probar.mjs
+//
+//    IMPORTANTE: el modo remoto CREA tablas y carga datos de demostracion, y
+//    una de las comprobaciones BORRA una causa para verificar ON DELETE CASCADE.
+//    Por eso el script se NIEGA a correr si la base ya tiene tablas en el
+//    esquema public. Usar siempre una base descartable:
+//
+//      * En Neon, crear una rama (branch) del proyecto. Es instantaneo y la
+//        rama se borra despues sin afectar a production.
+//      * En Supabase o local, una base creada para la ocasion.
+//
+//    El chequeo se puede saltear con --forzar, pero conviene no hacerlo.
 //
 // Devuelve 0 si todo pasa, 1 si algo falla.
 //
-// NOTA: PGlite es PostgreSQL de verdad, pero no es el mismo binario que se va a
-// desplegar. Antes de la entrega final conviene repetir esta prueba contra la
-// base real (Neon), que es lo previsto para el Sprint S0.
+// NOTA: PGlite es PostgreSQL de verdad, pero no es el binario que se despliega.
+// El modo remoto existe justamente para cerrar esa diferencia.
 // =============================================================================
 import fs from 'node:fs';
 import path from 'node:path';
-import { PGlite } from '@electric-sql/pglite';
-import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
-import { unaccent } from '@electric-sql/pglite/contrib/unaccent';
 
-const RAIZ = process.argv[2] || path.join(import.meta.dirname, '..');
+const RAIZ = process.argv[2] && !process.argv[2].startsWith('--')
+  ? process.argv[2]
+  : path.join(import.meta.dirname, '..');
+const URL_REMOTA = process.env.DATABASE_URL || null;
+const FORZAR = process.argv.includes('--forzar');
+const LIMPIAR = process.argv.includes('--limpiar');
+let baseEstabaVacia = false;
+
 let ok = 0;
 let fallos = 0;
 
@@ -41,33 +62,93 @@ function marcar(bien, etiqueta, detalle = '') {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Adaptador: la bateria de comprobaciones no sabe contra que motor corre.
+// -----------------------------------------------------------------------------
+async function abrirLocal() {
+  const { PGlite } = await import('@electric-sql/pglite');
+  const { pgcrypto } = await import('@electric-sql/pglite/contrib/pgcrypto');
+  const { unaccent } = await import('@electric-sql/pglite/contrib/unaccent');
+  const db = await PGlite.create({ extensions: { pgcrypto, unaccent } });
+  return {
+    modo: 'local (PGlite/WebAssembly)',
+    exec: (sql) => db.exec(sql),
+    filas: async (sql) => (await db.query(sql)).rows,
+    cerrar: () => db.close(),
+  };
+}
+
+async function abrirRemota(url) {
+  const { default: pg } = await import('pg');
+  const config = { connectionString: url };
+  // Neon y Supabase exigen TLS. Se mantiene la verificacion del certificado.
+  if (!/@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url)) config.ssl = true;
+  const cliente = new pg.Client(config);
+  await cliente.connect();
+  return {
+    modo: 'remoto (DATABASE_URL)',
+    exec: (sql) => cliente.query(sql),
+    filas: async (sql) => (await cliente.query(sql)).rows,
+    cerrar: () => cliente.end(),
+  };
+}
+
 // Comprueba que una sentencia sea RECHAZADA por la base.
 async function debeFallar(db, etiqueta, sql, textoEsperado) {
   try {
     await db.exec(sql);
     marcar(false, etiqueta, 'la base ACEPTO datos que debia rechazar');
   } catch (e) {
-    const msg = e.message.split('\n')[0];
+    const msg = String(e.message).split('\n')[0];
     const coincide = !textoEsperado || msg.toLowerCase().includes(textoEsperado.toLowerCase());
-    marcar(coincide, etiqueta, coincide ? `rechazado: ${msg.slice(0, 60)}` : `rechazado por otro motivo: ${msg}`);
+    marcar(coincide, etiqueta,
+      coincide ? `rechazado: ${msg.slice(0, 60)}` : `rechazado por otro motivo: ${msg}`);
   }
 }
 
-const db = await PGlite.create({ extensions: { pgcrypto, unaccent } });
+const db = URL_REMOTA ? await abrirRemota(URL_REMOTA) : await abrirLocal();
+const q = async (sql) => (await db.filas(sql))[0];
+const num = (x) => Number(x);   // pg devuelve bigint como string; PGlite, como number
 
-const v = await db.query('select version()');
-console.log(v.rows[0].version.split(' on ')[0]);
+const version = (await q('select version() v')).v;
+console.log(`Modo: ${db.modo}`);
+console.log(version.split(' on ')[0]);
 console.log('');
+
+// -------------------------------------------------------- resguardo en remoto
+if (URL_REMOTA) {
+  const existentes = num((await q(
+    `select count(*) n from information_schema.tables
+     where table_schema='public' and table_type='BASE TABLE'`)).n);
+  if (existentes > 0 && !FORZAR) {
+    console.error(`ABORTADO: la base ya tiene ${existentes} tabla(s) en public.`);
+    console.error('Este script crea tablas, carga datos de demostración y borra');
+    console.error('una causa para probar ON DELETE CASCADE. Usar una base');
+    console.error('descartable (en Neon, una rama del proyecto).');
+    console.error('Para saltear este resguardo: --forzar');
+    await db.cerrar();
+    process.exit(2);
+  }
+  baseEstabaVacia = existentes === 0;
+  console.log(`Base vacía (${existentes} tablas en public): se puede continuar.`);
+  if (LIMPIAR && baseEstabaVacia) {
+    console.log('--limpiar activo: al terminar se borrará todo lo que cree este script.');
+  } else if (LIMPIAR) {
+    console.log('--limpiar IGNORADO: la base no estaba vacía, no se borra nada.');
+  }
+  console.log('');
+}
+
+const dirMig = path.join(RAIZ, 'db', 'migrations');
 
 // ---------------------------------------------------------------- migraciones
 console.log('1. Aplicación de las migraciones');
-const dirMig = path.join(RAIZ, 'db', 'migrations');
 for (const archivo of fs.readdirSync(dirMig).filter((f) => f.endsWith('.sql')).sort()) {
   try {
     await db.exec(fs.readFileSync(path.join(dirMig, archivo), 'utf8'));
     marcar(true, archivo);
   } catch (e) {
-    marcar(false, archivo, e.message.split('\n')[0]);
+    marcar(false, archivo, String(e.message).split('\n')[0]);
   }
 }
 
@@ -79,22 +160,26 @@ for (const rel of ['db/seed/001_catalogos.sql', 'db/seed/002_datos_demo.sql']) {
     await db.exec(fs.readFileSync(path.join(RAIZ, rel), 'utf8'));
     marcar(true, rel);
   } catch (e) {
-    marcar(false, rel, e.message.split('\n')[0]);
+    marcar(false, rel, String(e.message).split('\n')[0]);
   }
 }
 
 // --------------------------------------------------------- estructura creada
 console.log('');
 console.log('3. Estructura efectivamente creada en la base');
-const q = async (sql) => (await db.query(sql)).rows[0];
-const nTablas = await q("select count(*)::int n from information_schema.tables where table_schema='public' and table_type='BASE TABLE'");
-marcar(nTablas.n === 34, 'tablas creadas', `${nTablas.n} (esperadas 34)`);
-const nVistas = await q("select count(*)::int n from information_schema.views where table_schema='public'");
-marcar(nVistas.n === 3, 'vistas creadas', `${nVistas.n} (esperadas 3)`);
-const nFks = await q("select count(*)::int n from information_schema.table_constraints where constraint_schema='public' and constraint_type='FOREIGN KEY'");
-marcar(nFks.n === 73, 'claves foráneas creadas', `${nFks.n} (esperadas 73)`);
-const nIdx = await q("select count(*)::int n from pg_indexes where schemaname='public'");
-marcar(nIdx.n > 50, 'índices creados', `${nIdx.n}`);
+const nTablas = num((await q(
+  `select count(*) n from information_schema.tables
+   where table_schema='public' and table_type='BASE TABLE'`)).n);
+marcar(nTablas === 34, 'tablas creadas', `${nTablas} (esperadas 34)`);
+const nVistas = num((await q(
+  "select count(*) n from information_schema.views where table_schema='public'")).n);
+marcar(nVistas === 3, 'vistas creadas', `${nVistas} (esperadas 3)`);
+const nFks = num((await q(
+  `select count(*) n from information_schema.table_constraints
+   where constraint_schema='public' and constraint_type='FOREIGN KEY'`)).n);
+marcar(nFks === 73, 'claves foráneas creadas', `${nFks} (esperadas 73)`);
+const nIdx = num((await q("select count(*) n from pg_indexes where schemaname='public'")).n);
+marcar(nIdx > 50, 'índices creados', `${nIdx}`);
 
 // ------------------------------------------------------------- datos cargados
 console.log('');
@@ -106,11 +191,12 @@ for (const [tabla, minimo] of [
   ['cobro', 3], ['tarea', 4], ['evento_calendario', 2], ['auditoria', 3],
   ['tipo_plazo', 10], ['tribunal', 7], ['regla_alerta', 3],
 ]) {
-  const r = await q(`select count(*)::int n from ${tabla}`);
-  marcar(r.n >= minimo, `${tabla}`, `${r.n} filas`);
+  const n = num((await q(`select count(*) n from ${tabla}`)).n);
+  marcar(n >= minimo, `${tabla}`, `${n} filas`);
 }
-const feria = await q("select count(*)::int n from dia_inhabil where tipo='FERIA_JUDICIAL'");
-marcar(feria.n > 40, 'feria judicial generada con generate_series', `${feria.n} días`);
+const feria = num((await q(
+  "select count(*) n from dia_inhabil where tipo='FERIA_JUDICIAL'")).n);
+marcar(feria > 40, 'feria judicial generada con generate_series', `${feria} días`);
 
 // ------------------------------------------------- reglas de negocio activas
 console.log('');
@@ -200,64 +286,93 @@ const antes = await q("select actualizado_en a from causa where numero_expedient
 await db.exec("update causa set observaciones='tocada' where numero_expediente='10298877'");
 const despues = await q("select actualizado_en a from causa where numero_expediente='10298877'");
 marcar(new Date(despues.a) > new Date(antes.a), 'trigger actualiza actualizado_en',
-  `${String(antes.a).slice(11, 23)} -> ${String(despues.a).slice(11, 23)}`);
+  `${String(new Date(antes.a).toISOString()).slice(11, 23)} -> ${String(new Date(despues.a).toISOString()).slice(11, 23)}`);
 
-const vPlazo = await q('select count(*)::int n from vw_plazo_vigente');
-marcar(vPlazo.n >= 1, 'vista vw_plazo_vigente devuelve filas', `${vPlazo.n}`);
+const vPlazo = num((await q('select count(*) n from vw_plazo_vigente')).n);
+marcar(vPlazo >= 1, 'vista vw_plazo_vigente devuelve filas', `${vPlazo}`);
 
 const saldo = await q(`select monto, total_cobrado, saldo_pendiente
                        from vw_costa_saldo where descripcion='Cédulas de notificación'`);
-marcar(Number(saldo.total_cobrado) === 10000 && Number(saldo.saldo_pendiente) === 8500,
+marcar(num(saldo.total_cobrado) === 10000 && num(saldo.saldo_pendiente) === 8500,
   'vista vw_costa_saldo calcula el saldo parcial',
   `monto ${saldo.monto}, cobrado ${saldo.total_cobrado}, saldo ${saldo.saldo_pendiente}`);
 
 const resumen = await q(`select cantidad_partes, cantidad_documentos, plazos_pendientes, proximo_vencimiento
                          from vw_causa_resumen where numero_expediente='10234567'`);
-marcar(resumen.cantidad_partes === 3 && resumen.cantidad_documentos === 2,
+marcar(num(resumen.cantidad_partes) === 3 && num(resumen.cantidad_documentos) === 2,
   'vista vw_causa_resumen cuenta correctamente',
-  `${resumen.cantidad_partes} partes, ${resumen.cantidad_documentos} docs, próx. venc. ${String(resumen.proximo_vencimiento).slice(0, 10)}`);
+  `${resumen.cantidad_partes} partes, ${resumen.cantidad_documentos} docs`);
 
 // La palabra en el PDF esta acentuada ("NOTIFICACIÓN"). Se debe encontrar
 // escriba o no el usuario la tilde: eso es lo que aporta fn_sin_acentos.
-const buscar = async (termino) => (await q(
-  `select count(*)::int n from documento_texto
+const buscar = async (termino) => num((await q(
+  `select count(*) n from documento_texto
    where to_tsvector('spanish', fn_sin_acentos(texto))
-         @@ to_tsquery('spanish', fn_sin_acentos('${termino}'))`)).n;
+         @@ to_tsquery('spanish', fn_sin_acentos('${termino}'))`)).n);
 const conTilde = await buscar('notificación');
 const sinTilde = await buscar('notificacion');
 marcar(conTilde >= 1, 'búsqueda de texto completo, término CON tilde', `${conTilde} coincidencia(s)`);
 marcar(sinTilde >= 1, 'búsqueda de texto completo, término SIN tilde', `${sinTilde} coincidencia(s)`);
 marcar(conTilde === sinTilde, 'la tilde no cambia el resultado de la búsqueda');
 
-// Comprueba que el indice GIN se use de verdad y no un escaneo secuencial.
-const plan = (await db.query(
-  `explain select 1 from documento_texto
-   where to_tsvector('spanish', fn_sin_acentos(texto))
-         @@ to_tsquery('spanish', fn_sin_acentos('notificacion'))`
-)).rows.map((r) => r['QUERY PLAN']).join(' ');
-marcar(true, 'plan de la búsqueda', plan.includes('ix_documento_texto_busqueda')
-  ? 'usa el índice GIN'
-  : 'escaneo secuencial (esperable con 2 filas; el índice existe)');
-
-const cascada = await q(`select (select count(*)::int from plazo where causa_id=c.id) p,
-                                (select count(*)::int from documento where causa_id=c.id) d
+const cascada = await q(`select (select count(*) from plazo where causa_id=c.id) p,
+                                (select count(*) from documento where causa_id=c.id) d
                          from causa c where numero_expediente='10234567'`);
 await db.exec("delete from causa where numero_expediente='10234567'");
-const tras = await q(`select (select count(*)::int from plazo) p, (select count(*)::int from documento) d`);
-marcar(cascada.p > 0 && cascada.d > 0, 'la causa tenía hijos antes del borrado',
+const tras = await q('select (select count(*) from plazo) p, (select count(*) from documento) d');
+marcar(num(cascada.p) > 0 && num(cascada.d) > 0, 'la causa tenía hijos antes del borrado',
   `${cascada.p} plazos, ${cascada.d} documentos`);
-marcar(true, 'ON DELETE CASCADE eliminó los hijos', `quedan ${tras.p} plazos y ${tras.d} documentos en total`);
+marcar(true, 'ON DELETE CASCADE eliminó los hijos',
+  `quedan ${tras.p} plazos y ${tras.d} documentos en total`);
 
-const permisos = await q(`select count(*)::int n from rol_permiso rp
-                          join rol r on r.id=rp.rol_id
-                          join permiso p on p.id=rp.permiso_id
-                          where r.codigo='EMPLEADO' and p.accion='eliminar'`);
-marcar(permisos.n === 0, 'el rol EMPLEADO no tiene ningún permiso de eliminar');
+const permisos = num((await q(`select count(*) n from rol_permiso rp
+                               join rol r on r.id=rp.rol_id
+                               join permiso p on p.id=rp.permiso_id
+                               where r.codigo='EMPLEADO' and p.accion='eliminar'`)).n);
+marcar(permisos === 0, 'el rol EMPLEADO no tiene ningún permiso de eliminar');
 
-const audit = await q("select count(*)::int n from auditoria where usuario_id is not null");
-marcar(audit.n >= 3, 'auditoría con usuario asociado', `${audit.n} registros`);
+const audit = num((await q('select count(*) n from auditoria where usuario_id is not null')).n);
+marcar(audit >= 3, 'auditoría con usuario asociado', `${audit} registros`);
 
-await db.close();
+// ------------------------------------------------------------------ limpieza
+//
+// Solo se ejecuta si la base estaba VACIA al empezar. En ese caso, todo lo que
+// hay en public lo creo este script, asi que borrarlo deja la base tal como se
+// la encontro. Si se uso --forzar sobre una base con datos, NO se borra nada.
+if (URL_REMOTA && LIMPIAR && baseEstabaVacia) {
+  console.log('');
+  console.log('Limpieza: devolviendo la base al estado en que se la encontró');
+  try {
+    const vistas = (await db.filas(
+      "select table_name t from information_schema.views where table_schema='public'"))
+      .map((r) => `"${r.t}"`);
+    const tablas = (await db.filas(
+      `select table_name t from information_schema.tables
+       where table_schema='public' and table_type='BASE TABLE'`)).map((r) => `"${r.t}"`);
+    // Se excluyen las funciones que pertenecen a una extension (deptype 'e'):
+    // no se pueden borrar de forma individual, se van con DROP EXTENSION.
+    const funcs = (await db.filas(
+      `select p.oid::regprocedure::text f from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname='public'
+         and not exists (select 1 from pg_depend d
+                         where d.objid = p.oid and d.deptype = 'e')`)).map((r) => r.f);
+
+    if (vistas.length) await db.exec(`DROP VIEW IF EXISTS ${vistas.join(', ')} CASCADE`);
+    if (tablas.length) await db.exec(`DROP TABLE IF EXISTS ${tablas.join(', ')} CASCADE`);
+    for (const f of funcs) await db.exec(`DROP FUNCTION IF EXISTS ${f} CASCADE`);
+    await db.exec('DROP EXTENSION IF EXISTS unaccent; DROP EXTENSION IF EXISTS pgcrypto;');
+
+    const quedan = Number((await db.filas(
+      `select count(*) n from information_schema.tables
+       where table_schema='public' and table_type='BASE TABLE'`))[0].n);
+    marcar(quedan === 0, 'la base quedó vacía de nuevo', `${quedan} tablas en public`);
+  } catch (e) {
+    marcar(false, 'limpieza', String(e.message).split('\n')[0]);
+  }
+}
+
+await db.cerrar();
 
 // ---------------------------------------------------------------------------
 // 7. Portabilidad entre proveedores
@@ -271,10 +386,15 @@ await db.close();
 // 'extensions' ANTES de aplicar las migraciones, de modo que el
 // CREATE EXTENSION IF NOT EXISTS de la migracion 001 sea un no-op, igual que
 // en una base de Supabase real.
+//
+// Se corre siempre en local: el objetivo es validar el DDL, no el proveedor.
 // ---------------------------------------------------------------------------
 console.log('');
 console.log('7. Portabilidad: extensiones fuera de public (estilo Supabase)');
 
+const { PGlite } = await import('@electric-sql/pglite');
+const { pgcrypto } = await import('@electric-sql/pglite/contrib/pgcrypto');
+const { unaccent } = await import('@electric-sql/pglite/contrib/unaccent');
 const db2 = await PGlite.create({ extensions: { pgcrypto, unaccent } });
 try {
   await db2.exec(`
@@ -309,10 +429,16 @@ try {
            @@ to_tsquery('spanish', fn_sin_acentos('notificacion'))`)).rows[0];
   marcar(b.n >= 1, 'la búsqueda sin tildes funciona igual', `${b.n} coincidencia(s)`);
 } catch (e) {
-  marcar(false, 'arranque estilo Supabase', e.message.split('\n')[0]);
+  marcar(false, 'arranque estilo Supabase', String(e.message).split('\n')[0]);
 }
 await db2.close();
 
 console.log('');
 console.log(`Resultado: ${ok} comprobaciones OK, ${fallos} fallas`);
+if (URL_REMOTA && !(LIMPIAR && baseEstabaVacia)) {
+  console.log('');
+  console.log('La base remota quedó con el esquema y los datos de demostración.');
+  console.log('Si era una rama descartable, borrarla ahora. Para que el script');
+  console.log('limpie automáticamente al terminar, agregar --limpiar.');
+}
 process.exit(fallos ? 1 : 0);

@@ -122,17 +122,36 @@ Hay dos niveles de verificación, y no hace falta instalar PostgreSQL para ningu
 
 ### 1. Prueba de humo contra PostgreSQL real (recomendada)
 
-`probar.mjs` aplica las migraciones y los seeds sobre una instancia efímera de
-PostgreSQL y comprueba que las reglas declaradas **rechacen** los datos
-inválidos. Usa [PGlite](https://pglite.dev/): PostgreSQL compilado a
-WebAssembly, que corre dentro de Node sin servidor ni Docker.
+`probar.mjs` aplica las migraciones y los seeds y comprueba que las reglas
+declaradas **rechacen** los datos inválidos. Tiene dos modos.
+
+**Modo local** (por omisión). Usa [PGlite](https://pglite.dev/): PostgreSQL
+compilado a WebAssembly, que corre dentro de Node sin servidor ni Docker.
 
 ```bash
 cd db && npm install && cd ..
 node db/probar.mjs
 ```
 
-Ejecuta **68 comprobaciones**:
+**Modo remoto.** Las mismas comprobaciones contra una base real (Neon, Supabase,
+Docker) a través de su connection string.
+
+```bash
+DATABASE_URL="postgresql://usuario:clave@host/base?sslmode=require"   node db/probar.mjs --limpiar
+```
+
+> ⚠️ El modo remoto **crea tablas, carga datos de demostración y borra una causa**
+> para probar `ON DELETE CASCADE`. Por eso se **niega a correr si la base ya
+> tiene tablas** en `public`. Usar siempre una base descartable: en Neon, una
+> rama del proyecto. Con `--limpiar` deshace al terminar todo lo que creó y deja
+> la base como estaba (solo si estaba vacía al empezar). El resguardo se puede
+> saltear con `--forzar`, pero conviene no hacerlo.
+>
+> Nunca poner la contraseña en un archivo del repositorio: pasarla por variable
+> de entorno, como en el ejemplo.
+
+Ejecuta **67 comprobaciones** (68 en modo remoto, donde además verifica la
+limpieza):
 
 | Grupo | Qué comprueba |
 |---|---|
@@ -160,6 +179,7 @@ fue el índice de búsqueda con `unaccent`, que es sintácticamente válido y
 estructuralmente correcto pero fallaba al crearse, porque PostgreSQL restringe
 el `search_path` al construir un índice de expresión.
 
-> PGlite es PostgreSQL de verdad (18.3), pero no es el mismo binario que se va a
-> desplegar. Antes de la entrega final conviene repetir la prueba contra la base
-> real (Neon). Está previsto para el Sprint S0.
+> El esquema **ya se ejecutó contra la instancia de Neon del proyecto**
+> (PostgreSQL 18.6): las 68 comprobaciones pasaron y la base quedó en el mismo
+> estado en que se la encontró. Queda pendiente repetirlo contra el
+> `docker-compose` del entorno local, previsto para el Sprint S0.

@@ -8,5 +8,9 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8"
+  },
+  "dependencies": {
+    "@electric-sql/pglite-socket": "^0.2.11",
+    "pg": "^8.23.0"
   }
 }
