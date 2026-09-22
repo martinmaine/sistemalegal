@@ -14,8 +14,23 @@
 | **Repositorio** | https://github.com/martinmaine/sistemalegal |
 | **Hito** | 2.ª Entrega — Diseño y módulos (condición de Regular) |
 | **Fecha máxima** | 27/09 |
-| **Entregable requerido** | Esquema de la base de datos relacional + listado de módulos |
+| **Entregable requerido** | Esquema de la base de datos relacional + listado de módulos, en el repositorio |
 | **Documento previo** | [`propuesta-proyecto.md`](propuesta-proyecto.md) (1.ª entrega) |
+
+### 1.1. Circuito de aprobación
+
+La consigna exige que el esquema y el listado de módulos estén **aprobados previa y
+explícitamente por el tutor y luego por el comité de trabajo final**. Son dos
+instancias secuenciales, no una sola.
+
+| Instancia | Estado | Fecha |
+|---|---|---|
+| Presentación al tutor (Sergio Andrés Antonini) | Pendiente | — |
+| Aprobación explícita del tutor | Pendiente | — |
+| Aprobación del comité de trabajo final | Pendiente | — |
+
+> Este cuadro se actualiza a medida que se obtienen las aprobaciones, de modo que
+> el repositorio deje constancia del circuito y no solo del entregable técnico.
 
 ---
 
