@@ -1456,7 +1456,8 @@ Reproducible con `node db/probar.mjs` (ver [`../db/README.md`](../db/README.md))
 | Datos cargados por los seeds | 20 | Todas las tablas con las filas esperadas |
 | **La base rechaza datos inválidos** | 11 | Los 11 intentos fueron rechazados |
 | Comportamientos que deben funcionar | 14 | Correctos |
-| | **63** | **0 fallas** |
+| Portabilidad entre proveedores (ver §16.2) | 5 | Correcta |
+| | **68** | **0 fallas** |
 
 Los once intentos de escritura inválida que la base rechazó:
 
@@ -1481,7 +1482,36 @@ devuelven los valores correctos (`vw_costa_saldo` calcula bien un cobro parcial:
 escriba o no el usuario las tildes; `ON DELETE CASCADE` elimina los hijos de una
 causa borrada; el rol Empleado no tiene ningún permiso de eliminar.
 
-### 16.2. Verificación estructural y de la documentación
+### 16.2. Portabilidad entre proveedores
+
+La propuesta declara **Neon** como base de despliegue y **Supabase** como
+alternativa. No son intercambiables sin cuidado: instalan las extensiones en
+esquemas distintos.
+
+| Entorno | Esquema donde viven `pgcrypto` y `unaccent` |
+|---|---|
+| PostgreSQL local, Docker, **Neon** | `public` |
+| **Supabase** | `extensions` |
+
+Esto importa porque `fn_sin_acentos()` usa el diccionario `unaccent` **dentro de
+un índice**, y al construir un índice de expresión PostgreSQL restringe el
+`search_path`. Un DDL que calificara el esquema a mano quedaría atado a un
+proveedor y fallaría en el otro al crear el índice.
+
+La solución es que la función declare su propio `search_path` nombrando los dos
+esquemas posibles, y que el seed de demostración haga lo mismo para `crypt()`. El
+mismo DDL corre en los tres entornos sin variantes ni condicionales.
+
+Verificado ejecutando el esquema completo **dos veces**: una con las extensiones
+en `public` y otra preinstalándolas en `extensions` para reproducir el arranque
+de Supabase. En ambos casos las 12 migraciones se aplican, los seeds cargan, el
+hash bcrypt sigue siendo verificable y la búsqueda sin tildes funciona igual.
+
+Ambos proveedores soportan las dos extensiones que el esquema necesita, y el
+esquema requiere **PostgreSQL 13 o superior** (por `gen_random_uuid()`), muy por
+debajo de lo que ofrecen.
+
+### 16.3. Verificación estructural y de la documentación
 
 | Comprobación | Herramienta | Resultado |
 |---|---|---|
@@ -1501,11 +1531,12 @@ causa borrada; el rol Empleado no tiene ningún permiso de eliminar.
 > restringe el `search_path` al construir un índice de expresión. Solo apareció
 > al ejecutar.
 
-### 16.3. Lo que todavía **no** se verificó
+### 16.4. Lo que todavía **no** se verificó
 
-> PGlite es PostgreSQL de verdad, pero **no es el mismo binario que se va a
-> desplegar**. Queda pendiente para el **Sprint S0** repetir la prueba contra la
-> base real (Neon) y contra el `docker-compose` del entorno local.
+> PGlite es PostgreSQL de verdad (18.3) y se cubrió la diferencia de esquemas
+> entre proveedores, pero **no es el mismo binario que se va a desplegar**. Queda
+> pendiente para el **Sprint S0** repetir la prueba contra la instancia de Neon
+> del proyecto y contra el `docker-compose` del entorno local.
 >
 > Tampoco se probó el **motor de cómputo de plazos**: todavía no existe, se
 > implementa en el Sprint S2 con sus 10+ casos de prueba.

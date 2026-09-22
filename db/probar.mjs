@@ -259,6 +259,60 @@ marcar(audit.n >= 3, 'auditoría con usuario asociado', `${audit.n} registros`);
 
 await db.close();
 
+// ---------------------------------------------------------------------------
+// 7. Portabilidad entre proveedores
+//
+// Cada proveedor instala las extensiones en un esquema distinto:
+//   PostgreSQL local, Docker y Neon -> public
+//   Supabase                        -> extensions
+//
+// El bloque anterior ya cubrio el caso 'public'. Aca se repite el arranque
+// simulando a Supabase: se preinstalan las extensiones en un esquema
+// 'extensions' ANTES de aplicar las migraciones, de modo que el
+// CREATE EXTENSION IF NOT EXISTS de la migracion 001 sea un no-op, igual que
+// en una base de Supabase real.
+// ---------------------------------------------------------------------------
+console.log('');
+console.log('7. Portabilidad: extensiones fuera de public (estilo Supabase)');
+
+const db2 = await PGlite.create({ extensions: { pgcrypto, unaccent } });
+try {
+  await db2.exec(`
+    CREATE SCHEMA extensions;
+    CREATE EXTENSION pgcrypto WITH SCHEMA extensions;
+    CREATE EXTENSION unaccent WITH SCHEMA extensions;
+  `);
+  const ubic = (await db2.query(
+    `select extname, extnamespace::regnamespace::text ns from pg_extension
+     where extname in ('pgcrypto','unaccent') order by extname`)).rows;
+  marcar(ubic.every((e) => e.ns === 'extensions'),
+    'extensiones preinstaladas en el esquema extensions',
+    ubic.map((e) => `${e.extname}->${e.ns}`).join(', '));
+
+  for (const archivo of fs.readdirSync(dirMig).filter((f) => f.endsWith('.sql')).sort()) {
+    await db2.exec(fs.readFileSync(path.join(dirMig, archivo), 'utf8'));
+  }
+  marcar(true, 'las 12 migraciones se aplican con las extensiones en otro esquema');
+
+  await db2.exec(fs.readFileSync(path.join(RAIZ, 'db/seed/001_catalogos.sql'), 'utf8'));
+  await db2.exec(fs.readFileSync(path.join(RAIZ, 'db/seed/002_datos_demo.sql'), 'utf8'));
+  marcar(true, 'los seeds cargan (crypt/gen_salt resueltos fuera de public)');
+
+  const h = (await db2.query(
+    `select (password_hash = extensions.crypt('Demo1234!', password_hash)) v
+     from usuario where email='jefe@estudiodemo.test'`)).rows[0];
+  marcar(h.v === true, 'el hash bcrypt sigue siendo verificable');
+
+  const b = (await db2.query(
+    `select count(*)::int n from documento_texto
+     where to_tsvector('spanish', fn_sin_acentos(texto))
+           @@ to_tsquery('spanish', fn_sin_acentos('notificacion'))`)).rows[0];
+  marcar(b.n >= 1, 'la búsqueda sin tildes funciona igual', `${b.n} coincidencia(s)`);
+} catch (e) {
+  marcar(false, 'arranque estilo Supabase', e.message.split('\n')[0]);
+}
+await db2.close();
+
 console.log('');
 console.log(`Resultado: ${ok} comprobaciones OK, ${fallos} fallas`);
 process.exit(fallos ? 1 : 0);

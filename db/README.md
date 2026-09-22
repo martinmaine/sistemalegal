@@ -132,7 +132,7 @@ cd db && npm install && cd ..
 node db/probar.mjs
 ```
 
-Ejecuta **63 comprobaciones** en cuatro grupos:
+Ejecuta **68 comprobaciones**:
 
 | Grupo | Qué comprueba |
 |---|---|
@@ -141,6 +141,7 @@ Ejecuta **63 comprobaciones** en cuatro grupos:
 | Estructura | Que existan 34 tablas, 3 vistas, 73 claves foráneas |
 | Reglas | Que la base **rechace** persona física sin apellido, importes negativos, plazos cumplidos sin fecha, CUIT mal formado, emails repetidos, archivos duplicados, un Super Admin con estudio, borrar un fuero con causas... |
 | Comportamiento | Hash bcrypt verificable, trigger de `actualizado_en`, las 3 vistas, búsqueda con y sin tildes, `ON DELETE CASCADE`, permisos del rol Empleado |
+| Portabilidad | Que todo funcione con las extensiones en `public` (Neon) **y** en `extensions` (Supabase) |
 
 ### 2. Verificación estructural, sin ejecutar
 

@@ -13,6 +13,12 @@
 -- Requiere haber ejecutado antes 001_catalogos.sql.
 -- =============================================================================
 
+-- Este archivo usa crypt() y gen_salt() de pgcrypto para hashear las
+-- contraseñas de demostración. Cada proveedor instala las extensiones en un
+-- esquema distinto (public en local/Docker/Neon, extensions en Supabase), así
+-- que se nombran ambos en lugar de depender del search_path de la sesión.
+SET search_path = public, extensions, pg_catalog;
+
 -- -----------------------------------------------------------------------------
 -- Estudio
 -- -----------------------------------------------------------------------------
