@@ -29,7 +29,10 @@ db/
 │   ├── 001_catalogos.sql    # Configuración base (necesaria para operar)
 │   └── 002_datos_demo.sql   # Datos FICTICIOS de demostración
 ├── schema.sql           # Generado: concatenación de las migraciones
-└── generar-schema.py    # Regenera schema.sql
+├── generar-schema.py    # Regenera schema.sql
+├── verificar.py         # Verificación estructural, sin ejecutar
+├── probar.mjs           # Prueba de humo contra PostgreSQL real (WebAssembly)
+└── package.json         # Dependencia de la prueba de humo
 ```
 
 **Las migraciones son la fuente de verdad.** `schema.sql` es un archivo derivado
@@ -115,14 +118,47 @@ expedientes. No ejecutar ese archivo en producción.
 
 ## Verificación del esquema
 
-Los archivos SQL fueron validados contra la gramática de PostgreSQL con
-[`pglast`](https://github.com/lelit/pglast) (libpg_query), comprobando además
-que no haya claves foráneas rotas, dependencias fuera de orden ni índices sobre
-columnas inexistentes.
+Hay dos niveles de verificación, y no hace falta instalar PostgreSQL para ninguno.
+
+### 1. Prueba de humo contra PostgreSQL real (recomendada)
+
+`probar.mjs` aplica las migraciones y los seeds sobre una instancia efímera de
+PostgreSQL y comprueba que las reglas declaradas **rechacen** los datos
+inválidos. Usa [PGlite](https://pglite.dev/): PostgreSQL compilado a
+WebAssembly, que corre dentro de Node sin servidor ni Docker.
+
+```bash
+cd db && npm install && cd ..
+node db/probar.mjs
+```
+
+Ejecuta **63 comprobaciones** en cuatro grupos:
+
+| Grupo | Qué comprueba |
+|---|---|
+| Migraciones | Que las 12 se apliquen en orden sin errores |
+| Seeds | Que carguen los datos esperados en cada tabla |
+| Estructura | Que existan 34 tablas, 3 vistas, 73 claves foráneas |
+| Reglas | Que la base **rechace** persona física sin apellido, importes negativos, plazos cumplidos sin fecha, CUIT mal formado, emails repetidos, archivos duplicados, un Super Admin con estudio, borrar un fuero con causas... |
+| Comportamiento | Hash bcrypt verificable, trigger de `actualizado_en`, las 3 vistas, búsqueda con y sin tildes, `ON DELETE CASCADE`, permisos del rol Empleado |
+
+### 2. Verificación estructural, sin ejecutar
+
+`verificar.py` recorre el árbol sintáctico que produce el parser real del motor
+(libpg_query) y comprueba sintaxis, claves foráneas, orden de dependencias,
+índices y triggers.
 
 ```bash
 pip install pglast
+python db/verificar.py
 ```
 
-> El esquema **todavía no se ejecutó contra una instancia real de PostgreSQL**.
-> Esa prueba queda pendiente para el Sprint S0, cuando esté el `docker-compose`.
+Es más rápida y sirve como control previo, pero **no reemplaza a la prueba de
+humo**: hay errores que solo aparecen al ejecutar. Un caso real de este proyecto
+fue el índice de búsqueda con `unaccent`, que es sintácticamente válido y
+estructuralmente correcto pero fallaba al crearse, porque PostgreSQL restringe
+el `search_path` al construir un índice de expresión.
+
+> PGlite es PostgreSQL de verdad (18.3), pero no es el mismo binario que se va a
+> desplegar. Antes de la entrega final conviene repetir la prueba contra la base
+> real (Neon). Está previsto para el Sprint S0.

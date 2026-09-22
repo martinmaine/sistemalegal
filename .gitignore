@@ -1,0 +1,24 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Python (herramientas de verificación del esquema)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Logs y temporales
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Builds
+dist/
+build/
+.vite/

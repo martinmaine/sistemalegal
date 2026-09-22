@@ -231,7 +231,8 @@ def main():
     print('OK: sintaxis valida, sin FK rotas, sin dependencias fuera de orden,')
     print('    indices y triggers coherentes, seeds consistentes con el esquema.')
     print('')
-    print('NOTA: esto NO reemplaza ejecutar el esquema contra PostgreSQL.')
+    print('NOTA: esto NO reemplaza ejecutar el esquema. Para la prueba de humo')
+    print('      contra PostgreSQL real:  node db/probar.mjs')
     return 0
 
 

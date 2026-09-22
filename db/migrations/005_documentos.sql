@@ -73,9 +73,18 @@ CREATE TABLE documento_texto (
 
 -- Búsqueda de texto completo en español sobre el contenido de los PDF.
 -- Es un índice de expresión: no requiere una columna tsvector materializada.
+--
+-- El texto se normaliza con fn_sin_acentos (ver migración 001) porque el
+-- diccionario español genera lexemas distintos para 'NOTIFICACIÓN' y
+-- 'NOTIFICACION', y nadie escribe tildes en un buscador.
+--
+-- IMPORTANTE para el módulo de documentos: la consulta debe normalizarse igual,
+--     WHERE to_tsvector('spanish', fn_sin_acentos(texto))
+--           @@ to_tsquery('spanish', fn_sin_acentos(:termino))
+-- o el índice no se usa y la búsqueda vuelve a fallar con las tildes.
 CREATE INDEX ix_documento_texto_busqueda
     ON documento_texto
-    USING GIN (to_tsvector('spanish', coalesce(texto, '')));
+    USING GIN (to_tsvector('spanish', fn_sin_acentos(coalesce(texto, ''))));
 
 COMMENT ON TABLE documento_texto IS
     'Texto plano extraído por el microservicio Python. Relación 1:1 con '

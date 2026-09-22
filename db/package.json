@@ -1,0 +1,12 @@
+{
+  "name": "sistemalegal-db",
+  "private": true,
+  "type": "module",
+  "description": "Pruebas del esquema de base de datos contra PostgreSQL en WebAssembly",
+  "scripts": {
+    "probar": "node probar.mjs .."
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8"
+  }
+}
