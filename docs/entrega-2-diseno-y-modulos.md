@@ -1427,7 +1427,7 @@ esquema**: no hay facturación, ni CRM, ni portal de cliente, ni KPIs.
 
 ## 16. Verificación realizada
 
-Lo que efectivamente se comprobó sobre el SQL entregado:
+Lo que efectivamente se comprobó sobre lo entregado:
 
 | Comprobación | Herramienta | Resultado |
 |---|---|---|
@@ -1437,8 +1437,9 @@ Lo que efectivamente se comprobó sobre el SQL entregado:
 | Índices sobre columnas existentes | Recorrido del árbol sintáctico | Sin referencias inválidas |
 | Triggers sobre tablas y funciones definidas | Recorrido del árbol sintáctico | Correctos |
 | `INSERT` del seed contra el esquema | Recorrido del árbol sintáctico | 34 `INSERT`, columnas válidas |
-| El verificador detecta defectos reales | Inyección deliberada de una FK rota y un índice inválido | Ambos detectados |
 | Diccionario de datos coincide con el DDL | Generado desde el árbol sintáctico | Por construcción |
+| Diagramas entidad-relación válidos | `mermaid` v12 (el mismo parser que usa GitHub) | 3 diagramas, 0 errores |
+| Los verificadores detectan defectos reales | Inyección deliberada de una FK rota, un índice inválido y un diagrama mal formado | Todos detectados |
 
 ### Lo que todavía **no** se verificó
 
