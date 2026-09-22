@@ -37,8 +37,8 @@ diseño y no un anexo:
 | Datos ficticios de demostración | [`../db/seed/002_datos_demo.sql`](../db/seed/002_datos_demo.sql) |
 | Instrucciones de uso | [`../db/README.md`](../db/README.md) |
 
-**Cifras del esquema:** 34 tablas · 3 vistas · 73 claves foráneas · 2 funciones ·
-135 sentencias DDL.
+**Cifras del esquema:** 34 tablas · 3 vistas · 73 claves foráneas · 3 funciones ·
+137 sentencias DDL.
 
 ---
 
@@ -208,6 +208,18 @@ del microservicio, con un índice parcial que solo cubre las filas pendientes.
 El binario del PDF **no se guarda en la base**: la tabla guarda la ruta al
 almacenamiento de objetos. La base almacena metadatos, no archivos.
 
+**La búsqueda es insensible a tildes, y eso no es un detalle cosmético.** El
+diccionario español de PostgreSQL reduce `NOTIFICACIÓN` al lexema `notif`, pero
+`NOTIFICACION` sin tilde no la reconoce y la deja entera como `notificacion`. Son
+lexemas distintos: un abogado que busque sin tildes —lo normal— no encontraría el
+documento. Por eso el índice normaliza el texto con `fn_sin_acentos()`, una
+envoltura `IMMUTABLE` sobre `unaccent` (la función original es `STABLE` y
+PostgreSQL no indexa expresiones que no sean inmutables).
+
+> **Obligación para el módulo `documentos`:** la consulta debe normalizarse con
+> la misma función. Si se normaliza solo el índice, la búsqueda vuelve a fallar
+> con las tildes y además deja de usar el índice.
+
 ### 5.3. El cómputo de plazos se separa en regla, calendario e instancia
 
 Es la pieza central del sistema y la mitigación del riesgo R3 de la propuesta.
@@ -357,7 +369,7 @@ regla general. Los principales:
 | `ix_costa_pendiente` (parcial) | Tablero de cobranza |
 | `ix_notificacion_bandeja` (parcial) | Bandeja de no leídas del usuario |
 | `ix_auditoria_entidad` | "Todo lo que le pasó a esta causa" |
-| `ix_documento_texto_busqueda` (GIN) | Búsqueda de texto completo en español dentro de los PDF |
+| `ix_documento_texto_busqueda` (GIN) | Búsqueda de texto completo en español dentro de los PDF, **insensible a tildes** |
 
 Los índices parciales (`WHERE ...`) cubren solo las filas que las consultas
 recorren —plazos abiertos, alertas sin disparar, notificaciones sin leer—, lo que
@@ -1427,7 +1439,49 @@ esquema**: no hay facturación, ni CRM, ni portal de cliente, ni KPIs.
 
 ## 16. Verificación realizada
 
-Lo que efectivamente se comprobó sobre lo entregado:
+### 16.1. El esquema se ejecuta: prueba de humo
+
+El esquema **se aplicó efectivamente sobre PostgreSQL 18.3** y se comprobó que
+las reglas declaradas hagan su trabajo. No hizo falta instalar PostgreSQL ni
+Docker: se usó [PGlite](https://pglite.dev/), que es PostgreSQL compilado a
+WebAssembly y corre dentro de Node.
+
+Reproducible con `node db/probar.mjs` (ver [`../db/README.md`](../db/README.md)).
+
+| Grupo | Comprobaciones | Resultado |
+|---|---|---|
+| Aplicación de las 12 migraciones en orden | 12 | Sin errores |
+| Aplicación de los 2 seeds | 2 | Sin errores |
+| Estructura creada (34 tablas, 3 vistas, 73 FK, 95 índices) | 4 | Coincide con el diseño |
+| Datos cargados por los seeds | 20 | Todas las tablas con las filas esperadas |
+| **La base rechaza datos inválidos** | 11 | Los 11 intentos fueron rechazados |
+| Comportamientos que deben funcionar | 14 | Correctos |
+| | **63** | **0 fallas** |
+
+Los once intentos de escritura inválida que la base rechazó:
+
+| Intento | Mecanismo que lo frenó |
+|---|---|
+| Crear un Super Admin con estudio asignado | trigger `tg_usuario_ambito` |
+| Crear un Empleado sin estudio | trigger `tg_usuario_ambito` |
+| Persona física sin apellido | `ck_persona_identificacion` |
+| Costa con importe negativo | `ck_costa_monto` |
+| Plazo `CUMPLIDO` sin fecha de cumplimiento | `ck_plazo_cumplimiento` |
+| Cómputo que arranca antes de la notificación | `ck_plazo_inicio_computo` |
+| CUIT con formato inválido | `ck_estudio_cuit_formato` |
+| Causa que cierra antes de empezar | `ck_causa_fechas` |
+| Subir dos veces el mismo archivo | índice único sobre `hash_sha256` |
+| Email de login repetido (distinta capitalización) | índice único sobre `lower(email)` |
+| Borrar un fuero que tiene causas | `ON DELETE RESTRICT` |
+
+Y los comportamientos verificados: las contraseñas quedan hasheadas con bcrypt y
+validan contra `crypt()`; el trigger de `actualizado_en` dispara; las tres vistas
+devuelven los valores correctos (`vw_costa_saldo` calcula bien un cobro parcial:
+18.500 − 10.000 = 8.500 de saldo); la búsqueda documental encuentra el término
+escriba o no el usuario las tildes; `ON DELETE CASCADE` elimina los hijos de una
+causa borrada; el rol Empleado no tiene ningún permiso de eliminar.
+
+### 16.2. Verificación estructural y de la documentación
 
 | Comprobación | Herramienta | Resultado |
 |---|---|---|
@@ -1435,21 +1489,26 @@ Lo que efectivamente se comprobó sobre lo entregado:
 | Claves foráneas apuntan a tablas y columnas existentes | Recorrido del árbol sintáctico | 73 FK, 0 rotas |
 | Toda tabla destino se crea antes que su referente | Orden de migraciones | Sin dependencias fuera de orden |
 | Índices sobre columnas existentes | Recorrido del árbol sintáctico | Sin referencias inválidas |
-| Triggers sobre tablas y funciones definidas | Recorrido del árbol sintáctico | Correctos |
 | `INSERT` del seed contra el esquema | Recorrido del árbol sintáctico | 34 `INSERT`, columnas válidas |
 | Diccionario de datos coincide con el DDL | Generado desde el árbol sintáctico | Por construcción |
+| Las cifras de este documento coinciden con el esquema | Cruce automático documento ↔ DDL | Sin divergencias |
 | Diagramas entidad-relación válidos | `mermaid` v12 (el mismo parser que usa GitHub) | 3 diagramas, 0 errores |
 | Los verificadores detectan defectos reales | Inyección deliberada de una FK rota, un índice inválido y un diagrama mal formado | Todos detectados |
 
-### Lo que todavía **no** se verificó
+> **La verificación estructural no reemplaza a la prueba de humo.** Un caso real
+> de este proyecto: el índice de búsqueda con `unaccent` era sintácticamente
+> válido y estructuralmente correcto, pero fallaba al crearse, porque PostgreSQL
+> restringe el `search_path` al construir un índice de expresión. Solo apareció
+> al ejecutar.
 
-> **El esquema no se ejecutó contra una instancia real de PostgreSQL.** El
-> entorno de trabajo no tiene PostgreSQL ni Docker instalados. La validación
-> cubre sintaxis e integridad estructural, no ejecución.
+### 16.3. Lo que todavía **no** se verificó
+
+> PGlite es PostgreSQL de verdad, pero **no es el mismo binario que se va a
+> desplegar**. Queda pendiente para el **Sprint S0** repetir la prueba contra la
+> base real (Neon) y contra el `docker-compose` del entorno local.
 >
-> Queda pendiente para el **Sprint S0**, junto con el `docker-compose`: aplicar
-> `schema.sql` y ambos seeds sobre una base real y confirmar que los `CHECK`, los
-> triggers y las vistas se comportan como se espera.
+> Tampoco se probó el **motor de cómputo de plazos**: todavía no existe, se
+> implementa en el Sprint S2 con sus 10+ casos de prueba.
 
 ---
 
@@ -1468,7 +1527,9 @@ Lo que efectivamente se comprobó sobre lo entregado:
 
 ### 17.2. Técnicos, para el próximo sprint
 
-- Ejecutar el esquema contra PostgreSQL real (S0).
+- Repetir la prueba de humo contra la base de despliegue (Neon) y contra el
+  `docker-compose` del entorno local (S0). El esquema ya se ejecuta correctamente
+  sobre PostgreSQL 18.3 (ver §16.1), pero no sobre el binario de producción.
 - Elegir el almacenamiento de objetos para los PDF: `documento.ruta_almacenamiento`
   admite tanto disco local como almacenamiento externo; la decisión se toma en S2.
 - Definir el cifrado en reposo de los campos sensibles (riesgo R5). El esquema
@@ -1493,5 +1554,8 @@ plazo son datos configurables (R3), los movimientos del Poder Judicial admiten
 carga manual o importación (R1) y las funciones de IA no tienen dependientes, de
 modo que su ausencia no afecta al sistema (R4).
 
-A diferencia de un diseño solo en papel, el esquema se entrega como SQL
-ejecutable y verificado estructuralmente, listo para aplicarse en el Sprint S0.
+A diferencia de un diseño solo en papel, el esquema se entrega **ejecutado y
+probado**: se aplica sin errores sobre PostgreSQL 18.3, los seeds cargan, y las
+63 comprobaciones de `db/probar.mjs` confirman que las reglas declaradas rechazan
+efectivamente los datos inválidos. Queda listo para aplicarse sobre la base de
+despliegue en el Sprint S0.

@@ -98,7 +98,8 @@ sistemalegal/
 │   ├── seed/              # Catálogos base y datos ficticios de demostración
 │   ├── schema.sql         # Esquema consolidado (generado)
 │   ├── generar-schema.py  # Regenera schema.sql
-│   └── verificar.py       # Verifica el esquema sin necesidad de PostgreSQL
+│   ├── verificar.py       # Verificación estructural, sin ejecutar
+│   └── probar.mjs         # Prueba de humo: 63 comprobaciones sobre PostgreSQL real
 ├── frontend/              # Aplicación React + TypeScript              (pendiente)
 ├── backend/               # API Node.js + Express + TypeScript          (pendiente)
 ├── pdf-service/           # Microservicio Python (conversión PDF → texto) (pendiente)
@@ -138,6 +139,15 @@ psql -d sistemalegal -f db/seed/002_datos_demo.sql
 ```
 
 Detalle completo, usuarios de demostración y advertencias en [`db/README.md`](db/README.md).
+
+### Probar el esquema sin instalar nada
+
+Aplica las migraciones y los seeds sobre PostgreSQL en WebAssembly y comprueba que las
+reglas declaradas rechacen los datos inválidos. Solo requiere Node:
+
+```bash
+cd db && npm install && cd .. && node db/probar.mjs
+```
 
 ---
 
