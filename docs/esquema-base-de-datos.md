@@ -364,20 +364,18 @@ reglas de negocio.
 
 ## 8. Diccionario de datos
 
-> Esta sección se **genera automáticamente desde el DDL** (`db/migrations/*.sql`)
-> recorriendo el árbol sintáctico de PostgreSQL. No puede quedar desactualizada
-> respecto del esquema real.
+Esta sección se corresponde una a una con el DDL de
+[`../database/migrations/`](../database/migrations/): cada tabla indica de qué
+migración proviene.
 
 Tipos abreviados: `TIMESTAMPTZ` = marca temporal con huso horario ·
 `NUMERIC(14,2)` = decimal exacto para importes · `UUID` = identificador único.
 Salvo indicación contraria, las columnas `id` son `gen_random_uuid()` por
 omisión y las columnas `creado_en` / `actualizado_en` son `now()`.
 
-<!-- INICIO DICCIONARIO (generado: no editar a mano) -->
-
 ### Catálogos jurídicos
 
-> Origen: `db/migrations/002_catalogos_juridicos.sql`
+> Origen: `database/migrations/002_catalogos_juridicos.sql`
 
 #### `jurisdiccion`
 
@@ -467,7 +465,7 @@ Restricciones de tabla: `uq_tipo_causa_fuero_codigo (UNIQUE fuero_id, codigo)`
 
 ### Tenencia y seguridad
 
-> Origen: `db/migrations/003_tenencia_y_seguridad.sql`
+> Origen: `database/migrations/003_tenencia_y_seguridad.sql`
 
 #### `estudio`
 
@@ -555,7 +553,7 @@ Restricciones de tabla: `ck_refresh_token_vigencia`
 
 ### Causas
 
-> Origen: `db/migrations/004_causas.sql`
+> Origen: `database/migrations/004_causas.sql`
 
 #### `persona`
 
@@ -653,7 +651,7 @@ Restricciones de tabla: `ck_movimiento_origen`
 
 ### Documentos
 
-> Origen: `db/migrations/005_documentos.sql`
+> Origen: `database/migrations/005_documentos.sql`
 
 #### `documento`
 
@@ -692,7 +690,7 @@ Restricciones de tabla: `ck_documento_texto_paginas`
 
 ### Plazos y calendario
 
-> Origen: `db/migrations/006_plazos_y_calendario.sql`
+> Origen: `database/migrations/006_plazos_y_calendario.sql`
 
 #### `tipo_plazo`
 
@@ -789,7 +787,7 @@ Restricciones de tabla: `ck_evento_tipo`, `ck_evento_fechas`
 
 ### Alertas y notificaciones
 
-> Origen: `db/migrations/007_alertas_y_notificaciones.sql`
+> Origen: `database/migrations/007_alertas_y_notificaciones.sql`
 
 #### `regla_alerta`
 
@@ -840,7 +838,7 @@ Restricciones de tabla: `ck_notificacion_canal`
 
 ### Costas
 
-> Origen: `db/migrations/008_costas.sql`
+> Origen: `database/migrations/008_costas.sql`
 
 #### `costa`
 
@@ -882,7 +880,7 @@ Restricciones de tabla: `ck_cobro_monto`, `ck_cobro_medio`
 
 ### Plantillas y tareas
 
-> Origen: `db/migrations/009_operacion.sql`
+> Origen: `database/migrations/009_operacion.sql`
 
 #### `plantilla_escrito`
 
@@ -927,7 +925,7 @@ Restricciones de tabla: `ck_tarea_prioridad`, `ck_tarea_estado`, `ck_tarea_compl
 
 ### IA (opcional)
 
-> Origen: `db/migrations/010_ia.sql`
+> Origen: `database/migrations/010_ia.sql`
 
 #### `consulta_ia`
 
@@ -953,7 +951,7 @@ Restricciones de tabla: `ck_consulta_ia_tipo`, `ck_consulta_ia_estado`, `ck_cons
 
 ### Auditoría
 
-> Origen: `db/migrations/011_auditoria.sql`
+> Origen: `database/migrations/011_auditoria.sql`
 
 #### `auditoria`
 
@@ -972,8 +970,6 @@ Restricciones de tabla: `ck_consulta_ia_tipo`, `ck_consulta_ia_estado`, `ck_cons
 | `ocurrido_en` | TIMESTAMPTZ | no |  |
 
 Restricciones de tabla: `ck_auditoria_accion`
-
-<!-- FIN DICCIONARIO -->
 
 ---
 

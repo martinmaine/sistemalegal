@@ -140,26 +140,12 @@ diaria de vencimientos— que necesitan un proceso con estado.
 
 ## 5. Estructura del repositorio
 
-```
-sistemalegal/
-├── README.md              Descripción del proyecto y tecnologías
-├── docs/                  Documentación de las entregas
-│   ├── propuesta-proyecto.md        1.ª entrega
-│   ├── arquitectura.md              este documento
-│   ├── esquema-base-de-datos.md     modelo de datos y DER
-│   └── listado-modulos.md           módulos a desarrollar
-├── database/              Esquema PostgreSQL
-│   ├── migrations/        Migraciones versionadas (fuente de verdad)
-│   ├── seed/              Catálogos base y datos ficticios
-│   ├── schema.sql         Esquema consolidado
-│   └── README.md          Cómo crear la base
-├── frontend/              Aplicación React + TypeScript   (Sprint S0)
-├── backend/               API Node + Express + TypeScript (Sprint S0)
-└── pdf-service/           Microservicio Python            (Sprint S2)
-```
+Las carpetas siguen la arquitectura descrita arriba: `docs/` la documentación,
+`database/` el esquema, y `frontend/` y `backend/` los dos despliegues. El árbol
+completo está en el [README del repositorio](../README.md).
 
-`frontend/` y `backend/` están creadas y vacías: la codificación comienza recién
-después de que esta entrega sea aprobada.
+`frontend/` y `backend/` están creadas y vacías de código: la codificación
+comienza recién después de que esta entrega sea aprobada.
 
 ---
 

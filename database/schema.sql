@@ -4,7 +4,7 @@
 -- Sistema de Gestion Integral para Estudios Juridicos
 -- 2.a Entrega — Diseno de base de datos
 --
--- ARCHIVO GENERADO: concatenacion en orden de database/migrations/*.sql
+-- Concatenacion en orden de database/migrations/*.sql
 --
 -- Uso:  psql -d sistemalegal -f database/schema.sql
 -- =============================================================================

@@ -116,10 +116,9 @@ Personales): en desarrollo no se usan datos reales de personas ni de expedientes
 No ejecutar ese archivo en producción.
 
 **Pendiente de verificación jurídica.** En `seed/001_catalogos.sql` los
-`tipo_plazo` tienen `articulo_referencia` en `NULL` **a propósito**: las citas del
-CPCC de Córdoba (Ley 8465) deben tomarse del texto oficial, no se inventaron. Lo
-mismo con los feriados trasladables y las fechas de la feria judicial de julio,
-que fija el TSJ por Acuerdo Reglamentario.
+`tipo_plazo` tienen `articulo_referencia` en `NULL` **a propósito**: no se
+inventaron citas legales. El detalle está en
+[`../docs/esquema-base-de-datos.md`](../docs/esquema-base-de-datos.md), sección 9.1.
 
 ---
 
