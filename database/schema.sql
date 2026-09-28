@@ -4,11 +4,9 @@
 -- Sistema de Gestion Integral para Estudios Juridicos
 -- 2.a Entrega — Diseno de base de datos
 --
--- ARCHIVO GENERADO: es la concatenacion en orden de db/migrations/*.sql.
--- No editar a mano. Para cambiar el esquema se agrega una migracion nueva y se
--- regenera este archivo con:  python db/generar-schema.py
+-- ARCHIVO GENERADO: concatenacion en orden de database/migrations/*.sql
 --
--- Uso:  psql -d sistemalegal -f db/schema.sql
+-- Uso:  psql -d sistemalegal -f database/schema.sql
 -- =============================================================================
 
 
@@ -52,10 +50,15 @@ COMMENT ON FUNCTION fn_actualizar_timestamp() IS
 -- quien busque sin tildes —lo normal en un buscador— no encontraría el
 -- documento. Normalizar ambos lados resuelve el problema.
 --
--- No se puede usar unaccent() directamente en un índice: está declarada STABLE
--- porque depende del diccionario que se le pase. Fijando el diccionario de forma
--- explícita, el resultado sí es determinista y la envoltura puede declararse
--- IMMUTABLE, que es lo que exige un índice de expresión.
+-- No se puede usar unaccent() directamente en un índice: está declarada STABLE.
+-- La envoltura fija el diccionario, con lo cual el resultado es determinista y
+-- puede declararse IMMUTABLE, que es lo que exige un índice de expresión.
+--
+-- La cláusula SET search_path resuelve dos cosas:
+--   1. Al construir un índice de expresión PostgreSQL restringe el search_path
+--      de la sesión; sin esto, no encuentra 'unaccent' y el índice no se crea.
+--   2. Portabilidad: Neon instala las extensiones en public y Supabase en
+--      extensions. Nombrando ambos esquemas, el mismo DDL corre en los dos.
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION fn_sin_acentos(texto TEXT)
 RETURNS TEXT
@@ -63,16 +66,11 @@ LANGUAGE sql
 IMMUTABLE
 STRICT
 PARALLEL SAFE
+SET search_path = public, extensions, pg_catalog
 AS $$
-    -- Dos detalles que hacen falta para que esto funcione dentro de un índice:
-    --
-    --  1. El cast a regdictionary es obligatorio: sin él el literal llega como
-    --     'unknown' y PostgreSQL no resuelve la variante de dos argumentos.
-    --  2. Tanto la función como el diccionario van calificados con su esquema.
-    --     Al construir un índice de expresión PostgreSQL restringe el
-    --     search_path, así que un 'unaccent' a secas no se encuentra y la
-    --     creación del índice falla.
-    SELECT public.unaccent('public.unaccent'::regdictionary, texto);
+    -- El cast a regdictionary es obligatorio: sin él el literal llega como
+    -- 'unknown' y PostgreSQL no resuelve la variante de dos argumentos.
+    SELECT unaccent('unaccent'::regdictionary, texto);
 $$;
 
 COMMENT ON FUNCTION fn_sin_acentos(TEXT) IS

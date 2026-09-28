@@ -13,8 +13,11 @@ análisis de textos legales y como apoyo a la búsqueda de jurisprudencia.
 
 > **Trabajo Final Integrador** — Tecnicatura Universitaria en Programación a Distancia.
 >
-> - 1.ª entrega — propuesta: [`docs/propuesta-proyecto.md`](docs/propuesta-proyecto.md)
-> - 2.ª entrega — diseño de base de datos y módulos: [`docs/entrega-2-diseno-y-modulos.md`](docs/entrega-2-diseno-y-modulos.md)
+> **1.ª entrega** — [propuesta de proyecto](docs/propuesta-proyecto.md)
+>
+> **2.ª entrega** — [arquitectura](docs/arquitectura.md) ·
+> [esquema de base de datos](docs/esquema-base-de-datos.md) ·
+> [listado de módulos](docs/listado-modulos.md)
 
 ---
 
@@ -88,26 +91,23 @@ La justificación de cada elección está en la Sección 5 de la propuesta.
 
 ```
 sistemalegal/
-├── README.md              # Este archivo
-├── docs/                  # Informes y entregas
-│   ├── propuesta-proyecto.md           # 1.ª entrega
-│   ├── entrega-2-diseno-y-modulos.md   # 2.ª entrega: esquema de BD + módulos
-│   └── generar-diccionario.py          # Regenera el diccionario de datos desde el DDL
-├── db/                    # Esquema PostgreSQL          ← disponible
-│   ├── migrations/        # Migraciones versionadas (fuente de verdad)
-│   ├── seed/              # Catálogos base y datos ficticios de demostración
-│   ├── schema.sql         # Esquema consolidado (generado)
-│   ├── generar-schema.py  # Regenera schema.sql
-│   ├── verificar.py       # Verificación estructural, sin ejecutar
-│   └── probar.mjs         # Prueba de humo: 63 comprobaciones sobre PostgreSQL real
-├── frontend/              # Aplicación React + TypeScript              (pendiente)
-├── backend/               # API Node.js + Express + TypeScript          (pendiente)
-├── pdf-service/           # Microservicio Python (conversión PDF → texto) (pendiente)
-└── docker-compose.yml     # Orquestación del entorno local              (pendiente)
+├── README.md              Este archivo
+├── docs/                  Documentación de las entregas
+│   ├── propuesta-proyecto.md        1.ª entrega
+│   ├── arquitectura.md              Arquitectura y decisiones técnicas
+│   ├── esquema-base-de-datos.md     Modelo de datos, DER y diccionario
+│   └── listado-modulos.md           Los 12 módulos a desarrollar
+├── database/              Esquema PostgreSQL
+│   ├── migrations/        Migraciones versionadas (fuente de verdad)
+│   ├── seed/              Catálogos base y datos ficticios
+│   └── schema.sql         Esquema consolidado
+├── frontend/              Aplicación React + TypeScript    (Sprint S0)
+└── backend/               API Node + Express + TypeScript  (Sprint S0)
 ```
 
-> `db/` y `docs/` corresponden a las entregas ya realizadas. Las carpetas marcadas
-> como pendientes se incorporan a partir del Sprint S0.
+> Esta entrega corresponde a la etapa de **análisis y diseño**: `docs/` y
+> `database/` tienen el contenido, y `frontend/` y `backend/` quedan creadas con
+> su estructura declarada. La codificación comienza una vez aprobada la entrega.
 
 ---
 
@@ -129,25 +129,18 @@ de prueba ficticios.
 
 ### Solo la base de datos (disponible ahora)
 
-Mientras no exista el `docker-compose`, el esquema puede crearse con PostgreSQL 13 o superior:
+El esquema puede crearse con PostgreSQL 13 o superior:
 
 ```bash
 createdb sistemalegal
-psql -d sistemalegal -f db/schema.sql
-psql -d sistemalegal -f db/seed/001_catalogos.sql
-psql -d sistemalegal -f db/seed/002_datos_demo.sql
+psql -d sistemalegal -f database/schema.sql
+psql -d sistemalegal -f database/seed/001_catalogos.sql
+psql -d sistemalegal -f database/seed/002_datos_demo.sql
 ```
 
-Detalle completo, usuarios de demostración y advertencias en [`db/README.md`](db/README.md).
-
-### Probar el esquema sin instalar nada
-
-Aplica las migraciones y los seeds sobre PostgreSQL en WebAssembly y comprueba que las
-reglas declaradas rechacen los datos inválidos. Solo requiere Node:
-
-```bash
-cd db && npm install && cd .. && node db/probar.mjs
-```
+También se puede levantar con Docker sin instalar PostgreSQL. Los pasos, los
+usuarios de demostración y las advertencias están en
+[`database/README.md`](database/README.md).
 
 ---
 
@@ -155,8 +148,8 @@ cd db && npm install && cd .. && node db/probar.mjs
 
 | Hito | Fecha máxima | Entregable | Estado |
 |---|---|---|---|
-| 1.ª Entrega — Propuesta + repositorio | 30/08 | `docs/propuesta-proyecto.md` + URL del repo | ✅ Entregado |
-| 2.ª Entrega — Diseño y módulos (Regular) | 27/09 | `docs/entrega-2-diseno-y-modulos.md` + `db/` | ✅ Entregado |
+| 1.ª Entrega — Propuesta + repositorio | 30/08 | `docs/propuesta-proyecto.md` + URL del repo | Aprobada |
+| 2.ª Entrega — Diseño y módulos (Regular) | 27/09 | `docs/` (arquitectura, esquema, módulos) + `database/` | Subido — pendiente de aprobación del tutor |
 | Entrega Final — Informe + video + despliegue | 14/11 | Repo completo, despliegue online, informe y video (preferentemente en inglés) | Pendiente |
 | Defensa Oral | Mesa de examen | Presentación ante el comité | Pendiente |
 
