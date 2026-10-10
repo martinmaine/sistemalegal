@@ -57,7 +57,7 @@ competencia, la justificación del stack, el plan de trabajo y la viabilidad est
   pendientes, reporte de gastos exportable.
 - **Operación:** banco de plantillas de escritos por tipo y tribunal, tareas y delegación
   entre integrantes, registro de movimientos del Poder Judicial (carga manual / importación),
-  roles y permisos (Super Admin, Admin, Jefe de Estudio, Empleado).
+  roles y permisos (Admin, Jefe de Estudio, Empleado).
 - **Seguridad y auditoría:** registro de auditoría de acciones sensibles, permisos granulares
   por rol, cifrado de datos sensibles.
 

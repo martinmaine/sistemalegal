@@ -34,7 +34,7 @@ database/
 **Las migraciones son la fuente de verdad.** `schema.sql` es la concatenación de
 todas, para poder leer o aplicar el esquema completo de una sola vez.
 
-Resumen: **34 tablas · 3 vistas · 73 claves foráneas · 3 funciones.**
+Resumen: **34 tablas · 3 vistas · 58 claves foráneas · 2 funciones.**
 
 ---
 
@@ -96,7 +96,6 @@ Los crea `seed/002_datos_demo.sql`. La contraseña de todos es `Demo1234!`.
 
 | Correo | Rol |
 |---|---|
-| `superadmin@sistemalegal.test` | Super Admin (sin estudio) |
 | `admin@estudiodemo.test` | Admin |
 | `jefe@estudiodemo.test` | Jefe de Estudio |
 | `empleado1@estudiodemo.test` | Empleado |

@@ -40,40 +40,28 @@ ON CONFLICT (cuit) DO NOTHING;
 -- El formato es compatible con la librería bcrypt de Node.
 -- -----------------------------------------------------------------------------
 
--- Super Admin: sin estudio, por la regla de ámbito de usuario.
-INSERT INTO usuario (estudio_id, rol_id, email, password_hash, nombre, apellido)
-SELECT NULL, r.id, 'superadmin@sistemalegal.test',
-       crypt('Demo1234!', gen_salt('bf', 10)), 'Ana', 'Plataforma'
-FROM rol r WHERE r.codigo = 'SUPER_ADMIN'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO usuario (estudio_id, rol_id, email, password_hash, nombre, apellido,
+INSERT INTO usuario (rol_id, email, password_hash, nombre, apellido,
                      matricula, telefono)
-SELECT e.id, r.id, v.email, crypt('Demo1234!', gen_salt('bf', 10)),
+SELECT r.id, v.email, crypt('Demo1234!', gen_salt('bf', 10)),
        v.nombre, v.apellido, v.matricula, v.telefono
-FROM estudio e
-JOIN jurisdiccion j ON j.id = e.jurisdiccion_id
-JOIN (VALUES
+FROM (VALUES
         ('ADMIN',        'admin@estudiodemo.test',    'Laura',  'Gestión',   NULL,        '351-4000001'),
         ('JEFE_ESTUDIO', 'jefe@estudiodemo.test',     'Martín', 'Cordero',   'M.P. 1-12345', '351-4000002'),
         ('EMPLEADO',     'empleado1@estudiodemo.test','Sofía',  'Navarro',   'M.P. 1-23456', '351-4000003'),
         ('EMPLEADO',     'empleado2@estudiodemo.test','Diego',  'Ferreyra',  NULL,        '351-4000004')
      ) AS v(rol_codigo, email, nombre, apellido, matricula, telefono)
-  ON TRUE
 JOIN rol r ON r.codigo = v.rol_codigo
-WHERE e.cuit = '30-71234567-4'
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- Personas (partes y clientes) — todas ficticias
 -- -----------------------------------------------------------------------------
-INSERT INTO persona (estudio_id, tipo_persona, nombre, apellido, razon_social,
+INSERT INTO persona (tipo_persona, nombre, apellido, razon_social,
                      tipo_documento, numero_documento, cuit_cuil, email,
                      telefono, domicilio, localidad, provincia)
-SELECT e.id, v.tipo, v.nombre, v.apellido, v.razon_social, v.tipo_doc,
+SELECT v.tipo, v.nombre, v.apellido, v.razon_social, v.tipo_doc,
        v.nro_doc, v.cuit, v.email, v.telefono, v.domicilio, 'Córdoba', 'Córdoba'
-FROM estudio e,
-     (VALUES
+FROM (VALUES
         ('FISICA',  'Roberto', 'Giménez', NULL,
          'DNI', '20111222', '20-20111222-3', 'rgimenez@demo.test',
          '351-5000001', 'Belgrano 450'),
@@ -94,20 +82,18 @@ FROM estudio e,
          '351-5000006', 'Av. Vélez Sarsfield 1500')
      ) AS v(tipo, nombre, apellido, razon_social, tipo_doc, nro_doc, cuit,
             email, telefono, domicilio)
-WHERE e.cuit = '30-71234567-4'
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- Causas
 -- -----------------------------------------------------------------------------
-INSERT INTO causa (estudio_id, numero_expediente, caratula, tribunal_id, fuero_id,
+INSERT INTO causa (numero_expediente, caratula, tribunal_id, fuero_id,
                    tipo_causa_id, estado_causa_id, fecha_inicio, monto_reclamado,
                    creado_por)
-SELECT e.id, v.expediente, v.caratula, t.id, f.id, tc.id, ec.id,
+SELECT v.expediente, v.caratula, t.id, f.id, tc.id, ec.id,
        v.fecha_inicio::date, v.monto, u.id
-FROM estudio e
-JOIN jurisdiccion j  ON j.id = e.jurisdiccion_id
-JOIN usuario u       ON u.estudio_id = e.id AND u.email = 'jefe@estudiodemo.test'
+FROM jurisdiccion j
+JOIN usuario u ON u.email = 'jefe@estudiodemo.test'
 JOIN (VALUES
         ('10234567', 'GIMENEZ, ROBERTO c/ TRANSPORTES DEL CENTRO S.A. - DAÑOS Y PERJUICIOS',
          'CIV_COM', 'DANOS', 'EN_TRAMITE', '2026-03-12', 4500000.00,
@@ -127,7 +113,7 @@ JOIN estado_causa ec ON ec.codigo = v.estado_codigo
 JOIN tribunal t     ON t.fuero_id = f.id
                    AND t.nombre = v.tribunal_nombre
                    AND t.nominacion = v.tribunal_nom
-WHERE e.cuit = '30-71234567-4'
+WHERE j.codigo = 'AR-X'
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
@@ -146,8 +132,7 @@ JOIN (VALUES
         ('10311204', 'Transportes del Centro S.A.', 'DEMANDADO', FALSE)
      ) AS v(expediente, identificador, caracter, es_cliente)
   ON v.expediente = c.numero_expediente
-JOIN persona p ON p.estudio_id = c.estudio_id
-              AND (p.apellido = v.identificador OR p.razon_social = v.identificador)
+JOIN persona p ON (p.apellido = v.identificador OR p.razon_social = v.identificador)
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
@@ -188,11 +173,11 @@ ON CONFLICT DO NOTHING;
 -- -----------------------------------------------------------------------------
 -- Documentos y su texto extraído
 -- -----------------------------------------------------------------------------
-INSERT INTO documento (estudio_id, causa_id, tipo_documento_id, nombre_archivo,
+INSERT INTO documento (causa_id, tipo_documento_id, nombre_archivo,
                        nombre_original, mime_type, tamano_bytes,
                        ruta_almacenamiento, hash_sha256, estado_extraccion,
                        descripcion, subido_por)
-SELECT c.estudio_id, c.id, td.id, v.archivo, v.original, 'application/pdf',
+SELECT c.id, td.id, v.archivo, v.original, 'application/pdf',
        v.tamano, 'demo/' || v.archivo, v.hash, v.estado, v.descripcion, u.id
 FROM causa c
 JOIN (VALUES
@@ -229,11 +214,11 @@ ON CONFLICT DO NOTHING;
 -- Cubren los estados relevantes para probar el panel de vencimientos:
 -- uno próximo, uno ya vencido y uno cumplido.
 -- -----------------------------------------------------------------------------
-INSERT INTO plazo (estudio_id, causa_id, tipo_plazo_id, descripcion,
+INSERT INTO plazo (causa_id, tipo_plazo_id, descripcion,
                    fecha_notificacion, fecha_inicio_computo, cantidad_dias,
                    computo, fecha_vencimiento, fecha_vencimiento_original,
                    estado, responsable_id, fecha_cumplimiento, creado_por)
-SELECT c.estudio_id, c.id, tp.id, v.descripcion,
+SELECT c.id, tp.id, v.descripcion,
        v.notificacion::date, v.inicio::date, v.dias, v.computo,
        v.vencimiento::date, v.vencimiento::date, v.estado, u.id,
        v.cumplimiento::date, u.id
@@ -251,27 +236,25 @@ JOIN (VALUES
      ) AS v(expediente, tipo_codigo, descripcion, notificacion, inicio, dias,
             computo, vencimiento, estado, email_responsable, cumplimiento)
   ON v.expediente = c.numero_expediente
-JOIN tipo_plazo tp ON tp.codigo = v.tipo_codigo AND tp.estudio_id IS NULL
+JOIN tipo_plazo tp ON tp.codigo = v.tipo_codigo
 JOIN usuario u ON u.email = v.email_responsable
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- Reglas de alerta del estudio (multinivel)
 -- -----------------------------------------------------------------------------
-INSERT INTO regla_alerta (estudio_id, tipo_plazo_id, dias_anticipacion, nivel)
-SELECT e.id, NULL, v.dias, v.nivel
-FROM estudio e,
-     (VALUES (5, 'INFORMATIVA'), (3, 'IMPORTANTE'), (1, 'CRITICA')) AS v(dias, nivel)
-WHERE e.cuit = '30-71234567-4'
+INSERT INTO regla_alerta (tipo_plazo_id, dias_anticipacion, nivel)
+SELECT NULL, v.dias, v.nivel
+FROM (VALUES (5, 'INFORMATIVA'), (3, 'IMPORTANTE'), (1, 'CRITICA')) AS v(dias, nivel)
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- Costas y cobros
 -- -----------------------------------------------------------------------------
-INSERT INTO costa (estudio_id, causa_id, concepto_costa_id, descripcion, monto,
+INSERT INTO costa (causa_id, concepto_costa_id, descripcion, monto,
                    fecha_devengamiento, fecha_vencimiento_pago, a_cargo_de,
                    estado_cobro, registrado_por)
-SELECT c.estudio_id, c.id, cc.id, v.descripcion, v.monto,
+SELECT c.id, cc.id, v.descripcion, v.monto,
        v.devengamiento::date, v.vencimiento::date, v.a_cargo, v.estado, u.id
 FROM causa c
 JOIN (VALUES
@@ -314,9 +297,9 @@ ON CONFLICT DO NOTHING;
 -- -----------------------------------------------------------------------------
 -- Tareas
 -- -----------------------------------------------------------------------------
-INSERT INTO tarea (estudio_id, causa_id, titulo, descripcion, asignada_a,
+INSERT INTO tarea (causa_id, titulo, descripcion, asignada_a,
                    creada_por, prioridad, estado, fecha_vencimiento, completada_en)
-SELECT c.estudio_id, c.id, v.titulo, v.descripcion, ua.id, uc.id,
+SELECT c.id, v.titulo, v.descripcion, ua.id, uc.id,
        v.prioridad, v.estado, v.vencimiento::date, v.completada::timestamptz
 FROM causa c
 JOIN (VALUES
@@ -343,9 +326,9 @@ ON CONFLICT DO NOTHING;
 -- -----------------------------------------------------------------------------
 -- Eventos del calendario compartido
 -- -----------------------------------------------------------------------------
-INSERT INTO evento_calendario (estudio_id, causa_id, titulo, descripcion, tipo,
+INSERT INTO evento_calendario (causa_id, titulo, descripcion, tipo,
                                fecha_inicio, fecha_fin, todo_el_dia, lugar, creado_por)
-SELECT c.estudio_id, c.id, v.titulo, v.descripcion, v.tipo,
+SELECT c.id, v.titulo, v.descripcion, v.tipo,
        v.inicio::timestamptz, v.fin::timestamptz, v.todo_el_dia, v.lugar, u.id
 FROM causa c
 JOIN (VALUES
@@ -364,9 +347,9 @@ ON CONFLICT DO NOTHING;
 -- -----------------------------------------------------------------------------
 -- Auditoría de ejemplo
 -- -----------------------------------------------------------------------------
-INSERT INTO auditoria (estudio_id, usuario_id, entidad, entidad_id, accion,
+INSERT INTO auditoria (usuario_id, entidad, entidad_id, accion,
                        datos_despues, ip, user_agent)
-SELECT c.estudio_id, u.id, 'causa', c.id, 'CREAR',
+SELECT u.id, 'causa', c.id, 'CREAR',
        jsonb_build_object('caratula', c.caratula,
                           'numero_expediente', c.numero_expediente),
        '190.51.0.10'::inet, 'Mozilla/5.0 (demo)'

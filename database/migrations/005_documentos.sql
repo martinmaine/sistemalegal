@@ -14,7 +14,6 @@
 
 CREATE TABLE documento (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id          UUID NOT NULL REFERENCES estudio(id)        ON DELETE RESTRICT,
     causa_id            UUID NOT NULL REFERENCES causa(id)          ON DELETE CASCADE,
     tipo_documento_id   UUID REFERENCES tipo_documento(id)          ON DELETE RESTRICT,
     nombre_archivo      VARCHAR(255) NOT NULL,
@@ -35,10 +34,10 @@ CREATE TABLE documento (
     )
 );
 
--- Evita subir dos veces el mismo archivo al mismo estudio: el hash identifica
--- el contenido, no el nombre.
+-- Evita subir dos veces el mismo archivo: el hash identifica el contenido, no
+-- el nombre.
 CREATE UNIQUE INDEX uq_documento_hash
-    ON documento (estudio_id, hash_sha256)
+    ON documento (hash_sha256)
     WHERE eliminado_en IS NULL;
 
 CREATE INDEX ix_documento_causa ON documento (causa_id) WHERE eliminado_en IS NULL;

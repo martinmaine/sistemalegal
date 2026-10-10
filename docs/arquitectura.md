@@ -107,7 +107,7 @@ notificaciones). Express es minimalista y maduro.
 
 1. **La estructura es estable.** Causas, plazos, costas y usuarios tienen un
    esquema claro que no cambia seguido. No hay nada que justifique esquema libre.
-2. **Las relaciones son densas.** El esquema tiene 73 claves foráneas y la
+2. **Las relaciones son densas.** El esquema tiene 58 claves foráneas y la
    consulta típica —"qué vence esta semana, de qué causa y quién es el
    responsable"— cruza cinco tablas. En una base documental habría que duplicar
    datos o resolver los cruces en la aplicación.

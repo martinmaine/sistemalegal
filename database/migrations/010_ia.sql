@@ -12,7 +12,6 @@
 
 CREATE TABLE consulta_ia (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id        UUID NOT NULL REFERENCES estudio(id)  ON DELETE CASCADE,
     usuario_id        UUID REFERENCES usuario(id)           ON DELETE SET NULL,
     causa_id          UUID REFERENCES causa(id)             ON DELETE SET NULL,
     documento_id      UUID REFERENCES documento(id)         ON DELETE SET NULL,
@@ -39,7 +38,7 @@ CREATE TABLE consulta_ia (
     )
 );
 
-CREATE INDEX ix_consulta_ia_estudio ON consulta_ia (estudio_id, creado_en DESC);
+CREATE INDEX ix_consulta_ia_fecha ON consulta_ia (creado_en DESC);
 CREATE INDEX ix_consulta_ia_causa   ON consulta_ia (causa_id);
 
 COMMENT ON TABLE consulta_ia IS

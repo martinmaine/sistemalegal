@@ -12,7 +12,6 @@
 CREATE VIEW vw_plazo_vigente AS
 SELECT
     p.id                                  AS plazo_id,
-    p.estudio_id,
     p.causa_id,
     c.numero_expediente,
     c.caratula,
@@ -44,7 +43,6 @@ COMMENT ON VIEW vw_plazo_vigente IS
 CREATE VIEW vw_costa_saldo AS
 SELECT
     co.id            AS costa_id,
-    co.estudio_id,
     co.causa_id,
     c.numero_expediente,
     c.caratula,
@@ -75,7 +73,6 @@ COMMENT ON VIEW vw_costa_saldo IS
 CREATE VIEW vw_causa_resumen AS
 SELECT
     c.id             AS causa_id,
-    c.estudio_id,
     c.numero_expediente,
     c.caratula,
     f.nombre         AS fuero,

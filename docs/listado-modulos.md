@@ -8,6 +8,9 @@ Martín Maine · Gevont Utmazian — Tutor: Sergio Andrés Antonini
 **12 módulos** del backend, cada uno con responsabilidad única, tablas propias,
 endpoints REST, dependencias y rol mínimo de acceso.
 
+El sistema atiende a **un estudio jurídico** y tiene **tres roles**: Administrador,
+Jefe de Estudio y Empleado.
+
 Documentos relacionados: [arquitectura](arquitectura.md) ·
 [esquema de base de datos](esquema-base-de-datos.md) ·
 [propuesta (1.ª entrega)](propuesta-proyecto.md)
@@ -64,8 +67,7 @@ diseño a detalle; ninguno agrega alcance funcional.
 ## 2. Fichas de módulo
 
 > Convención de rutas: todos los endpoints cuelgan de `/api/v1`. Todos requieren
-> autenticación salvo los marcados como públicos. El filtro por `estudio_id` se
-> aplica de forma transversal y no aparece en las rutas.
+> autenticación salvo los marcados como públicos.
 
 ### 2.1. `usuarios-auth`
 
@@ -88,8 +90,8 @@ diseño a detalle; ninguno agrega alcance funcional.
 | `DELETE` | `/usuarios/:id` | Desactivar usuario | Admin |
 | `GET` | `/roles` | Listar roles y sus permisos | Admin |
 | `PUT` | `/roles/:id/permisos` | Reasignar permisos de un rol | Admin |
-| `GET` | `/estudios` | Listar estudios de la plataforma | Super Admin |
-| `POST` | `/estudios` | Alta de estudio | Super Admin |
+| `GET` | `/estudio` | Datos del estudio | Autenticado |
+| `PATCH` | `/estudio` | Modificar los datos del estudio | Admin |
 
 ### 2.2. `configuracion`
 
@@ -371,32 +373,32 @@ interfaz de ese módulo, nunca por consulta directa.
 
 ## 4. Matriz de roles y permisos
 
-Cuatro roles, según la propuesta. Los permisos son granulares (`módulo.acción`) y
+Tres roles. Los permisos son granulares (`módulo.acción`) y
 viven en `rol_permiso`: cambiar qué puede hacer un rol es una operación de datos,
 no un cambio de código.
 
-| Módulo | Super Admin | Admin | Jefe de Estudio | Empleado |
-|---|:---:|:---:|:---:|:---:|
-| `causas` | Total | Total | Total | Ver, crear, editar, exportar |
-| `personas` | Total | Total | Total | Ver, crear, editar, exportar |
-| `documentos` | Total | Total | Total | Ver, crear, editar, exportar |
-| `plazos` | Total | Total | Total | Ver, crear, editar, exportar |
-| `calendario` | Total | Total | Total | Ver, crear, editar, exportar |
-| `alertas` | Total | Total | Total | Ver, crear, editar, exportar |
-| `costas` | Total | Total | Total | Ver, crear, editar, exportar |
-| `plantillas` | Total | Total | Total | Ver, crear, editar, exportar |
-| `tareas` | Total | Total | Total | Ver, crear, editar, exportar |
-| `ia` | Total | Total | Total | Ver, crear, editar, exportar |
-| `usuarios` | Total | Total | — | — |
-| `configuracion` | Total | Total | — | — |
-| `auditoria` | Total | Total | Ver, exportar | — |
+| Módulo | Admin | Jefe de Estudio | Empleado |
+|---|:---:|:---:|:---:|
+| `causas` | Total | Total | Ver, crear, editar, exportar |
+| `personas` | Total | Total | Ver, crear, editar, exportar |
+| `documentos` | Total | Total | Ver, crear, editar, exportar |
+| `plazos` | Total | Total | Ver, crear, editar, exportar |
+| `calendario` | Total | Total | Ver, crear, editar, exportar |
+| `alertas` | Total | Total | Ver, crear, editar, exportar |
+| `costas` | Total | Total | Ver, crear, editar, exportar |
+| `plantillas` | Total | Total | Ver, crear, editar, exportar |
+| `tareas` | Total | Total | Ver, crear, editar, exportar |
+| `ia` | Total | Total | Ver, crear, editar, exportar |
+| `usuarios` | Total | — | — |
+| `configuracion` | Total | — | — |
+| `auditoria` | Total | Ver, exportar | — |
 
 Acciones: `ver` · `crear` · `editar` · `eliminar` · `exportar`. "Total" incluye
 `eliminar`.
 
 Diferencias clave: el **Empleado** nunca elimina y no ve la auditoría; el **Jefe
 de Estudio** opera y elimina, pero no administra usuarios ni configuración; el
-**Super Admin** además administra estudios y no pertenece a ninguno.
+**Administrador** puede todo, incluidos los datos del estudio.
 
 ---
 
@@ -420,7 +422,7 @@ respaldo en este diseño.
 | Plantillas de escritos por tipo y tribunal | `plantillas` | `plantilla_escrito` |
 | Tareas y delegación | `tareas` | `tarea` |
 | Movimientos del Poder Judicial (manual/importación) | `causas` | `movimiento_causa` |
-| Roles y permisos (4 roles) | `usuarios-auth` | `rol`, `permiso`, `rol_permiso`, `usuario` |
+| Roles y permisos | `usuarios-auth` | `rol`, `permiso`, `rol_permiso`, `usuario` |
 | Registro de auditoría | `auditoria` | `auditoria` |
 | Permisos granulares por rol | `usuarios-auth` | `rol_permiso` |
 | Cifrado de datos sensibles en reposo | — | **Sin correlato en el esquema** (ver abajo) |

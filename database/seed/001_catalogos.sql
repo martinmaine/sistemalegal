@@ -136,14 +136,14 @@ INSERT INTO concepto_costa (codigo, nombre, descripcion) VALUES
 ON CONFLICT (codigo) DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- Tipos de plazo (reglas oficiales — estudio_id NULL)
+-- Tipos de plazo (reglas procesales)
 --
 -- articulo_referencia queda NULL: ver la ADVERTENCIA del encabezado. Cargar con
 -- UPDATE una vez verificado el texto del CPCC de Córdoba (Ley 8465).
 -- -----------------------------------------------------------------------------
-INSERT INTO tipo_plazo (estudio_id, jurisdiccion_id, fuero_id, codigo, nombre,
+INSERT INTO tipo_plazo (jurisdiccion_id, fuero_id, codigo, nombre,
                         cantidad_dias, computo, articulo_referencia, prorrogable)
-SELECT NULL, j.id, f.id, v.codigo, v.nombre, v.dias, v.computo, NULL, v.prorrogable
+SELECT j.id, f.id, v.codigo, v.nombre, v.dias, v.computo, NULL, v.prorrogable
 FROM jurisdiccion j
 JOIN fuero f ON f.jurisdiccion_id = j.id
 JOIN (VALUES
@@ -164,8 +164,8 @@ WHERE j.codigo = 'AR-X';
 -- -----------------------------------------------------------------------------
 -- Días inhábiles — feriados nacionales de fecha fija
 -- -----------------------------------------------------------------------------
-INSERT INTO dia_inhabil (jurisdiccion_id, estudio_id, fecha, tipo, motivo)
-SELECT j.id, NULL, v.fecha::date, 'FERIADO_NACIONAL', v.motivo
+INSERT INTO dia_inhabil (jurisdiccion_id, fecha, tipo, motivo)
+SELECT j.id, v.fecha::date, 'FERIADO_NACIONAL', v.motivo
 FROM jurisdiccion j,
      (VALUES
         ('2026-01-01', 'Año Nuevo'),
@@ -185,8 +185,8 @@ ON CONFLICT DO NOTHING;
 -- Días inhábiles — feriados de fecha movible (derivados de la Pascua 2026:
 -- domingo 5 de abril). Verificar el resto contra el decreto anual.
 -- -----------------------------------------------------------------------------
-INSERT INTO dia_inhabil (jurisdiccion_id, estudio_id, fecha, tipo, motivo)
-SELECT j.id, NULL, v.fecha::date, 'FERIADO_NACIONAL', v.motivo
+INSERT INTO dia_inhabil (jurisdiccion_id, fecha, tipo, motivo)
+SELECT j.id, v.fecha::date, 'FERIADO_NACIONAL', v.motivo
 FROM jurisdiccion j,
      (VALUES
         ('2026-02-16', 'Carnaval'),
@@ -200,8 +200,8 @@ ON CONFLICT DO NOTHING;
 -- Feria judicial de enero — el mes completo, generado con generate_series en
 -- lugar de 31 filas escritas a mano.
 -- -----------------------------------------------------------------------------
-INSERT INTO dia_inhabil (jurisdiccion_id, estudio_id, fecha, tipo, motivo)
-SELECT j.id, NULL, d::date, 'FERIA_JUDICIAL', 'Feria judicial de enero'
+INSERT INTO dia_inhabil (jurisdiccion_id, fecha, tipo, motivo)
+SELECT j.id, d::date, 'FERIA_JUDICIAL', 'Feria judicial de enero'
 FROM jurisdiccion j,
      generate_series('2026-01-02'::date, '2026-01-31'::date, INTERVAL '1 day') AS d
 WHERE j.codigo = 'AR-X'
@@ -211,8 +211,8 @@ ON CONFLICT DO NOTHING;
 -- Feria judicial de julio — ventana habitual. Confirmar contra el Acuerdo
 -- Reglamentario del TSJ del año en curso.
 -- -----------------------------------------------------------------------------
-INSERT INTO dia_inhabil (jurisdiccion_id, estudio_id, fecha, tipo, motivo)
-SELECT j.id, NULL, d::date, 'FERIA_JUDICIAL', 'Feria judicial de julio'
+INSERT INTO dia_inhabil (jurisdiccion_id, fecha, tipo, motivo)
+SELECT j.id, d::date, 'FERIA_JUDICIAL', 'Feria judicial de julio'
 FROM jurisdiccion j,
      generate_series('2026-07-01'::date, '2026-07-15'::date, INTERVAL '1 day') AS d
 WHERE j.codigo = 'AR-X'
@@ -223,10 +223,9 @@ ON CONFLICT DO NOTHING;
 -- Roles
 -- -----------------------------------------------------------------------------
 INSERT INTO rol (codigo, nombre, descripcion, jerarquia) VALUES
-    ('SUPER_ADMIN',  'Super Administrador', 'Opera la plataforma. No pertenece a ningún estudio.', 1),
-    ('ADMIN',        'Administrador',       'Administra un estudio: usuarios, configuración y catálogos propios.', 2),
-    ('JEFE_ESTUDIO', 'Jefe de Estudio',     'Gestiona causas, plazos y costas del estudio; delega tareas.', 3),
-    ('EMPLEADO',     'Empleado',            'Opera sobre las causas en las que está asignado.', 4)
+    ('ADMIN',        'Administrador',   'Administra el estudio: usuarios, configuración y catálogos.', 1),
+    ('JEFE_ESTUDIO', 'Jefe de Estudio', 'Gestiona causas, plazos y costas; delega tareas.', 2),
+    ('EMPLEADO',     'Empleado',        'Opera sobre las causas en las que está asignado.', 3)
 ON CONFLICT (codigo) DO NOTHING;
 
 -- -----------------------------------------------------------------------------
@@ -247,11 +246,11 @@ ON CONFLICT (codigo) DO NOTHING;
 -- Asignación de permisos por rol
 -- -----------------------------------------------------------------------------
 
--- SUPER_ADMIN y ADMIN: todos los permisos.
+-- ADMIN: todos los permisos.
 INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id
 FROM rol r, permiso p
-WHERE r.codigo IN ('SUPER_ADMIN', 'ADMIN')
+WHERE r.codigo = 'ADMIN'
 ON CONFLICT DO NOTHING;
 
 -- JEFE_ESTUDIO: todo salvo la administración de usuarios y la configuración.

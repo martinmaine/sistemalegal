@@ -15,7 +15,6 @@
 
 CREATE TABLE auditoria (
     id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    estudio_id     UUID REFERENCES estudio(id) ON DELETE SET NULL,
     usuario_id     UUID REFERENCES usuario(id) ON DELETE SET NULL,
     entidad        VARCHAR(60) NOT NULL,
     entidad_id     UUID,
@@ -32,8 +31,8 @@ CREATE TABLE auditoria (
     )
 );
 
--- Vista principal: la actividad reciente de un estudio.
-CREATE INDEX ix_auditoria_estudio ON auditoria (estudio_id, ocurrido_en DESC);
+-- Vista principal: la actividad reciente del estudio.
+CREATE INDEX ix_auditoria_fecha ON auditoria (ocurrido_en DESC);
 
 -- Trazabilidad de un registro concreto: "todo lo que le pasó a esta causa".
 CREATE INDEX ix_auditoria_entidad ON auditoria (entidad, entidad_id, ocurrido_en DESC);

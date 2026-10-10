@@ -2,8 +2,8 @@
 -- 002 — Catálogos jurídicos (independientes del inquilino)
 --
 -- Estas tablas modelan la estructura del Poder Judicial y las clasificaciones
--- procesales. NO llevan estudio_id: son datos de referencia compartidos por
--- todos los estudios. Mantenerlos como DATOS y no como constantes en el código
+-- procesales. Son datos de referencia, no del estudio. Mantenerlos como DATOS
+-- y no como constantes en el código
 -- es lo que habilita configurar otra provincia sin recompilar (propuesta §3.1).
 -- =============================================================================
 

@@ -83,8 +83,8 @@ COMMENT ON FUNCTION fn_sin_acentos(TEXT) IS
 -- 002 — Catálogos jurídicos (independientes del inquilino)
 --
 -- Estas tablas modelan la estructura del Poder Judicial y las clasificaciones
--- procesales. NO llevan estudio_id: son datos de referencia compartidos por
--- todos los estudios. Mantenerlos como DATOS y no como constantes en el código
+-- procesales. Son datos de referencia, no del estudio. Mantenerlos como DATOS
+-- y no como constantes en el código
 -- es lo que habilita configurar otra provincia sin recompilar (propuesta §3.1).
 -- =============================================================================
 
@@ -196,15 +196,15 @@ CREATE TABLE concepto_costa (
 -- ####  003_tenencia_y_seguridad.sql  ################################
 
 -- =============================================================================
--- 003 — Tenencia (multi-estudio) y seguridad
+-- 003 — Datos del estudio y seguridad
 --
--- estudio es la raíz del inquilino: toda tabla de negocio cuelga de ella a
--- través de estudio_id. usuario.estudio_id es NULL únicamente para el rol
--- SUPER_ADMIN, que opera la plataforma y no pertenece a ningún estudio.
+-- El sistema atiende a UN estudio jurídico. La tabla estudio guarda sus datos
+-- (razón social, CUIT, domicilio), que se usan para encabezar los escritos, y
+-- por eso lleva una sola fila: un índice único lo garantiza.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- estudio — el inquilino (tenant).
+-- estudio — datos del estudio jurídico. Fila única.
 -- -----------------------------------------------------------------------------
 CREATE TABLE estudio (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -225,12 +225,16 @@ CREATE TRIGGER tg_estudio_actualizado
     BEFORE UPDATE ON estudio
     FOR EACH ROW EXECUTE FUNCTION fn_actualizar_timestamp();
 
+-- Garantiza una sola fila: el índice es sobre una constante, así que un segundo
+-- INSERT choca contra la misma clave.
+CREATE UNIQUE INDEX uq_estudio_fila_unica ON estudio ((TRUE));
+
 COMMENT ON TABLE estudio IS
-    'Inquilino del sistema. Su jurisdicción determina qué calendario de días '
-    'inhábiles y qué catálogo de tribunales ve por defecto.';
+    'Datos del estudio jurídico, en una fila única. Su jurisdicción determina '
+    'qué calendario de días inhábiles y qué catálogo de tribunales se usa.';
 
 -- -----------------------------------------------------------------------------
--- rol — los cuatro roles jerárquicos declarados en la propuesta (§3.3).
+-- rol — tres roles jerárquicos.
 -- -----------------------------------------------------------------------------
 CREATE TABLE rol (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -240,7 +244,7 @@ CREATE TABLE rol (
     jerarquia    SMALLINT     NOT NULL,
     creado_en    TIMESTAMPTZ  NOT NULL DEFAULT now(),
     CONSTRAINT ck_rol_codigo CHECK (
-        codigo IN ('SUPER_ADMIN', 'ADMIN', 'JEFE_ESTUDIO', 'EMPLEADO')
+        codigo IN ('ADMIN', 'JEFE_ESTUDIO', 'EMPLEADO')
     )
 );
 
@@ -279,7 +283,6 @@ CREATE TABLE rol_permiso (
 -- -----------------------------------------------------------------------------
 CREATE TABLE usuario (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id        UUID REFERENCES estudio(id) ON DELETE RESTRICT,
     rol_id            UUID NOT NULL REFERENCES rol(id) ON DELETE RESTRICT,
     email             VARCHAR(150) NOT NULL,
     password_hash     VARCHAR(255) NOT NULL,
@@ -296,7 +299,6 @@ CREATE TABLE usuario (
 
 -- El login es global, por eso la unicidad del email no se acota al estudio.
 CREATE UNIQUE INDEX uq_usuario_email ON usuario (lower(email));
-CREATE INDEX ix_usuario_estudio ON usuario (estudio_id);
 
 CREATE TRIGGER tg_usuario_actualizado
     BEFORE UPDATE ON usuario
@@ -305,36 +307,6 @@ CREATE TRIGGER tg_usuario_actualizado
 COMMENT ON COLUMN usuario.matricula IS
     'Matrícula profesional. Obligatoria de hecho para abogados, opcional para '
     'personal administrativo, por eso no se restringe en la base.';
-
--- -----------------------------------------------------------------------------
--- Regla de ámbito: SUPER_ADMIN no pertenece a ningún estudio; cualquier otro
--- rol debe pertenecer a uno. No se puede expresar con un CHECK porque el dato
--- que decide (rol.codigo) vive en otra tabla, así que se valida con trigger.
--- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION fn_validar_ambito_usuario()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_codigo_rol VARCHAR(20);
-BEGIN
-    SELECT codigo INTO v_codigo_rol FROM rol WHERE id = NEW.rol_id;
-
-    IF v_codigo_rol = 'SUPER_ADMIN' AND NEW.estudio_id IS NOT NULL THEN
-        RAISE EXCEPTION 'Un SUPER_ADMIN no puede pertenecer a un estudio';
-    END IF;
-
-    IF v_codigo_rol <> 'SUPER_ADMIN' AND NEW.estudio_id IS NULL THEN
-        RAISE EXCEPTION 'El rol % requiere estudio_id', v_codigo_rol;
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER tg_usuario_ambito
-    BEFORE INSERT OR UPDATE OF rol_id, estudio_id ON usuario
-    FOR EACH ROW EXECUTE FUNCTION fn_validar_ambito_usuario();
 
 -- -----------------------------------------------------------------------------
 -- refresh_token — permite revocar sesiones. Se guarda el HASH del token, nunca
@@ -373,7 +345,6 @@ COMMENT ON COLUMN refresh_token.token_hash IS 'SHA-256 en hexadecimal del refres
 -- -----------------------------------------------------------------------------
 CREATE TABLE persona (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id         UUID NOT NULL REFERENCES estudio(id) ON DELETE RESTRICT,
     tipo_persona       VARCHAR(10)  NOT NULL,
     nombre             VARCHAR(80),
     apellido           VARCHAR(80),
@@ -403,12 +374,10 @@ CREATE TABLE persona (
     )
 );
 
--- Un mismo documento no puede repetirse dentro del estudio entre personas vivas.
+-- Un mismo documento no puede repetirse entre personas vivas.
 CREATE UNIQUE INDEX uq_persona_documento
-    ON persona (estudio_id, tipo_documento, numero_documento)
+    ON persona (tipo_documento, numero_documento)
     WHERE eliminado_en IS NULL AND numero_documento IS NOT NULL;
-
-CREATE INDEX ix_persona_estudio ON persona (estudio_id) WHERE eliminado_en IS NULL;
 
 CREATE TRIGGER tg_persona_actualizado
     BEFORE UPDATE ON persona
@@ -419,7 +388,6 @@ CREATE TRIGGER tg_persona_actualizado
 -- -----------------------------------------------------------------------------
 CREATE TABLE causa (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id         UUID NOT NULL REFERENCES estudio(id)      ON DELETE RESTRICT,
     numero_expediente  VARCHAR(50),
     caratula           VARCHAR(300) NOT NULL,
     tribunal_id        UUID REFERENCES tribunal(id)              ON DELETE RESTRICT,
@@ -440,13 +408,13 @@ CREATE TABLE causa (
     CONSTRAINT ck_causa_monto  CHECK (monto_reclamado IS NULL OR monto_reclamado >= 0)
 );
 
--- El número de expediente es único dentro del estudio, pero puede faltar
--- mientras la causa está en preparación (todavía sin radicar).
+-- El número de expediente es único, pero puede faltar mientras la causa está
+-- en preparación (todavía sin radicar).
 CREATE UNIQUE INDEX uq_causa_expediente
-    ON causa (estudio_id, numero_expediente)
+    ON causa (numero_expediente)
     WHERE eliminado_en IS NULL AND numero_expediente IS NOT NULL;
 
-CREATE INDEX ix_causa_estudio_estado ON causa (estudio_id, estado_causa_id)
+CREATE INDEX ix_causa_estado ON causa (estado_causa_id)
     WHERE eliminado_en IS NULL;
 CREATE INDEX ix_causa_tribunal ON causa (tribunal_id);
 
@@ -554,7 +522,6 @@ CREATE INDEX ix_movimiento_causa_fecha ON movimiento_causa (causa_id, fecha DESC
 
 CREATE TABLE documento (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id          UUID NOT NULL REFERENCES estudio(id)        ON DELETE RESTRICT,
     causa_id            UUID NOT NULL REFERENCES causa(id)          ON DELETE CASCADE,
     tipo_documento_id   UUID REFERENCES tipo_documento(id)          ON DELETE RESTRICT,
     nombre_archivo      VARCHAR(255) NOT NULL,
@@ -575,10 +542,10 @@ CREATE TABLE documento (
     )
 );
 
--- Evita subir dos veces el mismo archivo al mismo estudio: el hash identifica
--- el contenido, no el nombre.
+-- Evita subir dos veces el mismo archivo: el hash identifica el contenido, no
+-- el nombre.
 CREATE UNIQUE INDEX uq_documento_hash
-    ON documento (estudio_id, hash_sha256)
+    ON documento (hash_sha256)
     WHERE eliminado_en IS NULL;
 
 CREATE INDEX ix_documento_causa ON documento (causa_id) WHERE eliminado_en IS NULL;
@@ -651,14 +618,10 @@ COMMENT ON TABLE documento_texto IS
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- tipo_plazo — catálogo de reglas procesales.
---
--- estudio_id NULL  => regla oficial, compartida por todos los estudios.
--- estudio_id != NULL => regla propia del estudio (plazos internos, recordatorios).
+-- tipo_plazo — catálogo de reglas procesales, configurable por el estudio.
 -- -----------------------------------------------------------------------------
 CREATE TABLE tipo_plazo (
     id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id            UUID REFERENCES estudio(id)      ON DELETE CASCADE,
     jurisdiccion_id       UUID NOT NULL REFERENCES jurisdiccion(id) ON DELETE RESTRICT,
     fuero_id              UUID REFERENCES fuero(id)        ON DELETE RESTRICT,
     codigo                VARCHAR(50)  NOT NULL,
@@ -674,15 +637,8 @@ CREATE TABLE tipo_plazo (
     CONSTRAINT ck_tipo_plazo_computo CHECK (computo IN ('HABIL', 'CORRIDO'))
 );
 
--- Unicidad separada para reglas oficiales y reglas propias del estudio:
--- un índice único ordinario trataría los NULL como distintos entre sí.
-CREATE UNIQUE INDEX uq_tipo_plazo_oficial
-    ON tipo_plazo (jurisdiccion_id, codigo)
-    WHERE estudio_id IS NULL;
-
-CREATE UNIQUE INDEX uq_tipo_plazo_estudio
-    ON tipo_plazo (estudio_id, codigo)
-    WHERE estudio_id IS NOT NULL;
+CREATE UNIQUE INDEX uq_tipo_plazo_codigo
+    ON tipo_plazo (jurisdiccion_id, codigo);
 
 COMMENT ON COLUMN tipo_plazo.articulo_referencia IS
     'Norma que funda el plazo, p. ej. el artículo del CPCC de Córdoba. Permite '
@@ -695,13 +651,12 @@ COMMENT ON COLUMN tipo_plazo.computo IS
 -- dia_inhabil — el calendario configurable. Requisito explícito de la propuesta:
 -- "mantener los días inhábiles como dato configurable, nunca fijo en el código".
 --
--- estudio_id NULL  => inhábil oficial de la jurisdicción (feriado, feria).
--- estudio_id != NULL => inhábil propio del estudio (asueto interno).
+-- La columna tipo distingue el inhábil oficial (feriado, feria judicial) del
+-- asueto propio del estudio.
 -- -----------------------------------------------------------------------------
 CREATE TABLE dia_inhabil (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     jurisdiccion_id   UUID NOT NULL REFERENCES jurisdiccion(id) ON DELETE RESTRICT,
-    estudio_id        UUID REFERENCES estudio(id) ON DELETE CASCADE,
     fecha             DATE         NOT NULL,
     tipo              VARCHAR(25)  NOT NULL,
     motivo            VARCHAR(200) NOT NULL,
@@ -713,13 +668,8 @@ CREATE TABLE dia_inhabil (
     )
 );
 
-CREATE UNIQUE INDEX uq_dia_inhabil_oficial
-    ON dia_inhabil (jurisdiccion_id, fecha)
-    WHERE estudio_id IS NULL;
-
-CREATE UNIQUE INDEX uq_dia_inhabil_estudio
-    ON dia_inhabil (estudio_id, fecha)
-    WHERE estudio_id IS NOT NULL;
+CREATE UNIQUE INDEX uq_dia_inhabil_fecha
+    ON dia_inhabil (jurisdiccion_id, fecha);
 
 -- El motor de cómputo consulta por rango de fechas dentro de una jurisdicción.
 CREATE INDEX ix_dia_inhabil_busqueda ON dia_inhabil (jurisdiccion_id, fecha);
@@ -739,7 +689,6 @@ COMMENT ON TABLE dia_inhabil IS
 -- -----------------------------------------------------------------------------
 CREATE TABLE plazo (
     id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id                  UUID NOT NULL REFERENCES estudio(id)   ON DELETE RESTRICT,
     causa_id                    UUID NOT NULL REFERENCES causa(id)     ON DELETE CASCADE,
     tipo_plazo_id               UUID REFERENCES tipo_plazo(id)         ON DELETE RESTRICT,
     descripcion                 VARCHAR(300) NOT NULL,
@@ -774,9 +723,9 @@ CREATE TABLE plazo (
 
 CREATE INDEX ix_plazo_causa ON plazo (causa_id);
 
--- Consulta central del sistema: "¿qué vence próximamente en este estudio?".
+-- Consulta central del sistema: "¿qué vence próximamente?".
 CREATE INDEX ix_plazo_vigilancia
-    ON plazo (estudio_id, fecha_vencimiento)
+    ON plazo (fecha_vencimiento)
     WHERE estado IN ('PENDIENTE', 'SUSPENDIDO');
 
 CREATE INDEX ix_plazo_responsable ON plazo (responsable_id)
@@ -827,7 +776,6 @@ COMMENT ON COLUMN plazo_suspension.fecha_hasta IS
 -- -----------------------------------------------------------------------------
 CREATE TABLE evento_calendario (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id      UUID NOT NULL REFERENCES estudio(id) ON DELETE RESTRICT,
     causa_id        UUID REFERENCES causa(id) ON DELETE CASCADE,
     plazo_id        UUID REFERENCES plazo(id) ON DELETE CASCADE,
     titulo          VARCHAR(200) NOT NULL,
@@ -848,7 +796,7 @@ CREATE TABLE evento_calendario (
 );
 
 CREATE INDEX ix_evento_calendario_rango
-    ON evento_calendario (estudio_id, fecha_inicio, fecha_fin);
+    ON evento_calendario (fecha_inicio, fecha_fin);
 
 CREATE TRIGGER tg_evento_calendario_actualizado
     BEFORE UPDATE ON evento_calendario
@@ -870,14 +818,13 @@ CREATE TRIGGER tg_evento_calendario_actualizado
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- regla_alerta — configuración multinivel por estudio.
+-- regla_alerta — configuración multinivel de avisos.
 --
 -- tipo_plazo_id NULL => regla general del estudio, aplica a todo plazo que no
 -- tenga una regla específica para su tipo.
 -- -----------------------------------------------------------------------------
 CREATE TABLE regla_alerta (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id          UUID NOT NULL REFERENCES estudio(id)    ON DELETE CASCADE,
     tipo_plazo_id       UUID REFERENCES tipo_plazo(id)          ON DELETE CASCADE,
     dias_anticipacion   SMALLINT    NOT NULL,
     nivel               VARCHAR(12) NOT NULL,
@@ -891,11 +838,11 @@ CREATE TABLE regla_alerta (
 );
 
 CREATE UNIQUE INDEX uq_regla_alerta_general
-    ON regla_alerta (estudio_id, dias_anticipacion)
+    ON regla_alerta (dias_anticipacion)
     WHERE tipo_plazo_id IS NULL;
 
 CREATE UNIQUE INDEX uq_regla_alerta_por_tipo
-    ON regla_alerta (estudio_id, tipo_plazo_id, dias_anticipacion)
+    ON regla_alerta (tipo_plazo_id, dias_anticipacion)
     WHERE tipo_plazo_id IS NOT NULL;
 
 COMMENT ON COLUMN regla_alerta.dias_anticipacion IS
@@ -907,7 +854,6 @@ COMMENT ON COLUMN regla_alerta.dias_anticipacion IS
 -- -----------------------------------------------------------------------------
 CREATE TABLE alerta (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id         UUID NOT NULL REFERENCES estudio(id)   ON DELETE CASCADE,
     plazo_id           UUID NOT NULL REFERENCES plazo(id)     ON DELETE CASCADE,
     regla_alerta_id    UUID REFERENCES regla_alerta(id)       ON DELETE SET NULL,
     nivel              VARCHAR(12)  NOT NULL,
@@ -981,7 +927,6 @@ CREATE INDEX ix_notificacion_bandeja
 
 CREATE TABLE costa (
     id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id               UUID NOT NULL REFERENCES estudio(id)        ON DELETE RESTRICT,
     causa_id                 UUID NOT NULL REFERENCES causa(id)          ON DELETE CASCADE,
     concepto_costa_id        UUID NOT NULL REFERENCES concepto_costa(id) ON DELETE RESTRICT,
     descripcion              VARCHAR(300),
@@ -1010,13 +955,13 @@ CREATE TABLE costa (
 
 CREATE INDEX ix_costa_causa ON costa (causa_id);
 
--- Consulta del tablero de cobranza: qué queda por cobrar en el estudio.
+-- Consulta del tablero de cobranza: qué queda por cobrar.
 CREATE INDEX ix_costa_pendiente
-    ON costa (estudio_id, fecha_vencimiento_pago)
+    ON costa (fecha_vencimiento_pago)
     WHERE estado_cobro IN ('PENDIENTE', 'PARCIAL');
 
 -- Reporte de gastos por período.
-CREATE INDEX ix_costa_devengamiento ON costa (estudio_id, fecha_devengamiento);
+CREATE INDEX ix_costa_devengamiento ON costa (fecha_devengamiento);
 
 CREATE TRIGGER tg_costa_actualizado
     BEFORE UPDATE ON costa
@@ -1062,12 +1007,10 @@ CREATE INDEX ix_cobro_fecha ON cobro (fecha);
 -- -----------------------------------------------------------------------------
 -- plantilla_escrito — banco de modelos de escritos por tipo y por tribunal.
 --
--- estudio_id NULL => plantilla base provista por el sistema.
 -- tribunal_id     => plantilla afinada a las exigencias formales de ese tribunal.
 -- -----------------------------------------------------------------------------
 CREATE TABLE plantilla_escrito (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id          UUID REFERENCES estudio(id)        ON DELETE CASCADE,
     tipo_documento_id   UUID REFERENCES tipo_documento(id) ON DELETE RESTRICT,
     fuero_id            UUID REFERENCES fuero(id)          ON DELETE RESTRICT,
     tribunal_id         UUID REFERENCES tribunal(id)       ON DELETE RESTRICT,
@@ -1083,7 +1026,6 @@ CREATE TABLE plantilla_escrito (
     CONSTRAINT ck_plantilla_version CHECK (version > 0)
 );
 
-CREATE INDEX ix_plantilla_estudio ON plantilla_escrito (estudio_id) WHERE activa;
 CREATE INDEX ix_plantilla_tribunal ON plantilla_escrito (tribunal_id) WHERE activa;
 
 CREATE TRIGGER tg_plantilla_actualizado
@@ -1102,7 +1044,6 @@ COMMENT ON COLUMN plantilla_escrito.contenido IS
 -- -----------------------------------------------------------------------------
 CREATE TABLE tarea (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id          UUID NOT NULL REFERENCES estudio(id) ON DELETE RESTRICT,
     causa_id            UUID REFERENCES causa(id) ON DELETE CASCADE,
     plazo_id            UUID REFERENCES plazo(id) ON DELETE SET NULL,
     titulo              VARCHAR(200) NOT NULL,
@@ -1153,7 +1094,6 @@ CREATE TRIGGER tg_tarea_actualizado
 
 CREATE TABLE consulta_ia (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id        UUID NOT NULL REFERENCES estudio(id)  ON DELETE CASCADE,
     usuario_id        UUID REFERENCES usuario(id)           ON DELETE SET NULL,
     causa_id          UUID REFERENCES causa(id)             ON DELETE SET NULL,
     documento_id      UUID REFERENCES documento(id)         ON DELETE SET NULL,
@@ -1180,7 +1120,7 @@ CREATE TABLE consulta_ia (
     )
 );
 
-CREATE INDEX ix_consulta_ia_estudio ON consulta_ia (estudio_id, creado_en DESC);
+CREATE INDEX ix_consulta_ia_fecha ON consulta_ia (creado_en DESC);
 CREATE INDEX ix_consulta_ia_causa   ON consulta_ia (causa_id);
 
 COMMENT ON TABLE consulta_ia IS
@@ -1209,7 +1149,6 @@ COMMENT ON COLUMN consulta_ia.estado IS
 
 CREATE TABLE auditoria (
     id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    estudio_id     UUID REFERENCES estudio(id) ON DELETE SET NULL,
     usuario_id     UUID REFERENCES usuario(id) ON DELETE SET NULL,
     entidad        VARCHAR(60) NOT NULL,
     entidad_id     UUID,
@@ -1226,8 +1165,8 @@ CREATE TABLE auditoria (
     )
 );
 
--- Vista principal: la actividad reciente de un estudio.
-CREATE INDEX ix_auditoria_estudio ON auditoria (estudio_id, ocurrido_en DESC);
+-- Vista principal: la actividad reciente del estudio.
+CREATE INDEX ix_auditoria_fecha ON auditoria (ocurrido_en DESC);
 
 -- Trazabilidad de un registro concreto: "todo lo que le pasó a esta causa".
 CREATE INDEX ix_auditoria_entidad ON auditoria (entidad, entidad_id, ocurrido_en DESC);
@@ -1262,7 +1201,6 @@ COMMENT ON COLUMN auditoria.datos_despues IS
 CREATE VIEW vw_plazo_vigente AS
 SELECT
     p.id                                  AS plazo_id,
-    p.estudio_id,
     p.causa_id,
     c.numero_expediente,
     c.caratula,
@@ -1294,7 +1232,6 @@ COMMENT ON VIEW vw_plazo_vigente IS
 CREATE VIEW vw_costa_saldo AS
 SELECT
     co.id            AS costa_id,
-    co.estudio_id,
     co.causa_id,
     c.numero_expediente,
     c.caratula,
@@ -1325,7 +1262,6 @@ COMMENT ON VIEW vw_costa_saldo IS
 CREATE VIEW vw_causa_resumen AS
 SELECT
     c.id             AS causa_id,
-    c.estudio_id,
     c.numero_expediente,
     c.caratula,
     f.nombre         AS fuero,

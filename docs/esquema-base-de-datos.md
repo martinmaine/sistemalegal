@@ -5,7 +5,7 @@
 Trabajo Final Integrador — 2.ª Entrega
 Martín Maine · Gevont Utmazian — Tutor: Sergio Andrés Antonini
 
-Modelo relacional PostgreSQL: **34 tablas · 3 vistas · 73 claves foráneas**, en
+Modelo relacional PostgreSQL: **34 tablas · 3 vistas · 58 claves foráneas**, en
 Tercera Forma Normal.
 
 El SQL ejecutable está en [`../database/`](../database/): migraciones
@@ -26,37 +26,38 @@ confirma en concreto:
 | Criterio | Evidencia en este esquema |
 |---|---|
 | **Estructura estable y bien definida** | Las 34 tablas tienen columnas tipadas y acotadas; ninguna entidad requiere esquema variable. |
-| **Relaciones densas entre entidades** | 73 claves foráneas. La consulta típica ("causas con vencimientos de esta semana y su responsable") cruza 5 tablas. |
+| **Relaciones densas entre entidades** | 58 claves foráneas. La consulta típica ("causas con vencimientos de esta semana y su responsable") cruza 5 tablas. |
 | **Integridad transaccional** | Registrar un cobro modifica `cobro` y el `estado_cobro` de `costa` en una sola transacción. Son datos de dinero y de plazos perentorios: no admiten estados intermedios inconsistentes. |
 
-### 1.2. Multi-inquilino (multi-estudio)
+### 1.2. Un estudio por instalación
 
-El sistema es **SaaS multi-estudio**: una sola instancia atiende a varios
-estudios jurídicos. Esto es lo que da sentido al rol Super Admin declarado en la
-propuesta.
+El sistema atiende a **un solo estudio jurídico**. La tabla `estudio` guarda sus
+datos —razón social, CUIT, domicilio, jurisdicción— y lleva **una sola fila**,
+garantizada por un índice único sobre una constante
+(`uq_estudio_fila_unica`). Esos datos se usan para encabezar los escritos
+generados desde las plantillas.
 
-La estrategia elegida es **base compartida con discriminador de inquilino**:
+Un diseño anterior era multi-estudio, con `estudio_id` en toda tabla de negocio
+y un rol Super Admin que administraba varios estudios sobre una misma instancia.
+**Se descartó por recomendación del tutor**, y la razón es de alcance: el costo
+no era la tabla sino que quince tablas llevaran `estudio_id`, que toda consulta
+tuviera que filtrar por él y que hubiera que construir las pantallas de
+administración de estudios. Para un equipo de dos personas en un cuatrimestre
+era trabajo que no agregaba valor al problema que se quiere resolver.
 
-- `estudio` es la raíz del inquilino.
-- Toda tabla de negocio lleva `estudio_id NOT NULL` con clave foránea e índice.
-- `usuario.estudio_id` es la **única excepción nullable**, y solo para el
-  Super Admin, que opera la plataforma y no pertenece a ningún estudio.
+La simplificación sacó **quince claves foráneas** y un trigger de validación, y
+dejó los roles en tres.
 
-Se descartaron las alternativas: *una base por estudio* (inviable de operar y de
-migrar con dos personas) y *un esquema por estudio* (mismo problema, con la
-complicación adicional de las migraciones en paralelo).
-
-> **Consecuencia para el backend:** el aislamiento entre inquilinos depende de
-> que toda consulta filtre por `estudio_id`. Es una obligación del módulo de
-> acceso a datos, no de la base. Se controla en un solo lugar (el repositorio
-> base) para que no dependa de la disciplina de cada endpoint.
+> Si en el futuro hiciera falta atender a varios estudios, el camino es agregar
+> `estudio_id` donde corresponda. No es una decisión irreversible, pero tampoco
+> algo que convenga pagar por adelantado.
 
 ### 1.3. Convenciones
 
 | Convención | Decisión | Motivo |
 |---|---|---|
 | **Idioma** | Español, `snake_case` | El dominio jurídico argentino no traduce limpio (*causa* ≠ *case*, *costas* ≠ *costs*). Traducirlo introduciría ambigüedad en el término más importante del sistema. |
-| **Claves primarias** | `UUID` con `gen_random_uuid()` | Los identificadores viajan en las URL de una aplicación multi-inquilino; un entero secuencial permitiría enumerar expedientes ajenos. |
+| **Claves primarias** | `UUID` con `gen_random_uuid()` | Los identificadores viajan en las URL; un entero secuencial permitiría enumerar expedientes recorriendo números. |
 | **Excepción** | `auditoria.id` es `BIGINT` de identidad | Tabla *append-only* de alto volumen cuyo id nunca aparece en una URL: no hay riesgo de enumeración y sí un beneficio en tamaño de índice. |
 | **Estados fijos** | `CHECK` con lista de valores | Alterar un `ENUM` de PostgreSQL exige migración; un `CHECK` se modifica sin recrear tipos. |
 | **Valores configurables** | Tablas de catálogo | Lo que el estudio puede cambiar (tipos de causa, conceptos de costa, días inhábiles) es **dato**, no código. |
@@ -84,14 +85,12 @@ al valor por omisión:
 
 ```mermaid
 erDiagram
-    ESTUDIO      ||--o{ USUARIO      : emplea
-    ESTUDIO      ||--o{ CAUSA        : gestiona
-    ESTUDIO      ||--o{ PERSONA      : registra
     ROL          ||--o{ USUARIO      : clasifica
     ROL          }o--o{ PERMISO      : habilita
 
     CAUSA        ||--o{ PARTE_CAUSA        : involucra
     PERSONA      ||--o{ PARTE_CAUSA        : participa
+    PERSONA      ||--o{ CAUSA              : "es parte de"
     CAUSA        ||--o{ PROFESIONAL_CAUSA  : asigna
     USUARIO      ||--o{ PROFESIONAL_CAUSA  : trabaja
     CAUSA        ||--o{ MOVIMIENTO_CAUSA   : registra
@@ -112,7 +111,7 @@ erDiagram
 
     CAUSA        ||--o{ TAREA        : origina
     USUARIO      ||--o{ TAREA        : ejecuta
-    ESTUDIO      ||--o{ AUDITORIA    : traza
+    USUARIO      ||--o{ AUDITORIA    : traza
 ```
 
 ### 2.2. Configuración jurisdiccional
@@ -138,13 +137,11 @@ erDiagram
 
 ```mermaid
 erDiagram
-    ESTUDIO       ||--o{ USUARIO       : pertenece
     ROL           ||--o{ USUARIO       : define
     ROL           ||--o{ ROL_PERMISO   : agrupa
     PERMISO       ||--o{ ROL_PERMISO   : integra
     USUARIO       ||--o{ REFRESH_TOKEN : autentica
     USUARIO       ||--o{ AUDITORIA     : "queda registrado en"
-    ESTUDIO       ||--o{ AUDITORIA     : acota
 ```
 
 ---
@@ -307,7 +304,6 @@ para que ningún error de la aplicación pueda producirlos.
 | Regla | Mecanismo |
 |---|---|
 | Una persona física tiene nombre y apellido; una jurídica, razón social | `CHECK ck_persona_identificacion` |
-| El Super Admin no pertenece a un estudio; los demás roles sí | Trigger `tg_usuario_ambito` (la regla cruza dos tablas, no puede ser un `CHECK`) |
 | El cómputo de un plazo no empieza antes de la notificación | `CHECK ck_plazo_inicio_computo` |
 | Un plazo cumplido tiene fecha de cumplimiento | `CHECK ck_plazo_cumplimiento` |
 | Una tarea completada tiene fecha de finalización | `CHECK ck_tarea_completada` |
@@ -316,7 +312,8 @@ para que ningún error de la aplicación pueda producirlos.
 | El cierre de una causa no es anterior a su inicio | `CHECK ck_causa_fechas` |
 | El CUIT del estudio tiene formato válido | `CHECK ck_estudio_cuit_formato` (expresión regular) |
 | No se sube dos veces el mismo archivo al mismo estudio | Índice único parcial sobre `hash_sha256` |
-| Un expediente no se repite dentro del estudio | Índice único parcial sobre `(estudio_id, numero_expediente)` |
+| Un expediente no se repite | Índice único parcial sobre `numero_expediente` |
+| El estudio tiene una sola fila | Índice único `uq_estudio_fila_unica` sobre una constante |
 | Un profesional no se asigna dos veces a la vez a una causa | Índice único parcial `WHERE fecha_baja IS NULL` |
 | El email de login es único sin distinguir mayúsculas | Índice único sobre `lower(email)` |
 | `actualizado_en` siempre refleja el último cambio | Trigger `fn_actualizar_timestamp` |
@@ -463,7 +460,7 @@ Restricciones de tabla: `uq_tipo_causa_fuero_codigo (UNIQUE fuero_id, codigo)`
 | `activo` | BOOLEAN | no |  |
 | `creado_en` | TIMESTAMPTZ | no |  |
 
-### Tenencia y seguridad
+### Estudio y seguridad
 
 > Origen: `database/migrations/003_tenencia_y_seguridad.sql`
 
@@ -521,7 +518,6 @@ Restricciones de tabla: `ck_rol_codigo`
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | sí | FK → `estudio` |
 | `rol_id` | UUID | no | FK → `rol` |
 | `email` | VARCHAR(150) | no |  |
 | `password_hash` | VARCHAR(255) | no |  |
@@ -560,7 +556,6 @@ Restricciones de tabla: `ck_refresh_token_vigencia`
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | no | FK → `estudio` |
 | `tipo_persona` | VARCHAR(10) | no |  |
 | `nombre` | VARCHAR(80) | sí |  |
 | `apellido` | VARCHAR(80) | sí |  |
@@ -585,7 +580,6 @@ Restricciones de tabla: `ck_persona_tipo`, `ck_persona_tipo_documento`, `ck_pers
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | no | FK → `estudio` |
 | `numero_expediente` | VARCHAR(50) | sí |  |
 | `caratula` | VARCHAR(300) | no |  |
 | `tribunal_id` | UUID | sí | FK → `tribunal` |
@@ -658,7 +652,6 @@ Restricciones de tabla: `ck_movimiento_origen`
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | no | FK → `estudio` |
 | `causa_id` | UUID | no | FK → `causa` |
 | `tipo_documento_id` | UUID | sí | FK → `tipo_documento` |
 | `nombre_archivo` | VARCHAR(255) | no |  |
@@ -697,7 +690,6 @@ Restricciones de tabla: `ck_documento_texto_paginas`
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | sí | FK → `estudio` |
 | `jurisdiccion_id` | UUID | no | FK → `jurisdiccion` |
 | `fuero_id` | UUID | sí | FK → `fuero` |
 | `codigo` | VARCHAR(50) | no |  |
@@ -717,7 +709,6 @@ Restricciones de tabla: `ck_tipo_plazo_dias`, `ck_tipo_plazo_computo`
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
 | `jurisdiccion_id` | UUID | no | FK → `jurisdiccion` |
-| `estudio_id` | UUID | sí | FK → `estudio` |
 | `fecha` | DATE | no |  |
 | `tipo` | VARCHAR(25) | no |  |
 | `motivo` | VARCHAR(200) | no |  |
@@ -730,7 +721,6 @@ Restricciones de tabla: `ck_dia_inhabil_tipo`
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | no | FK → `estudio` |
 | `causa_id` | UUID | no | FK → `causa` |
 | `tipo_plazo_id` | UUID | sí | FK → `tipo_plazo` |
 | `descripcion` | VARCHAR(300) | no |  |
@@ -769,7 +759,6 @@ Restricciones de tabla: `ck_plazo_suspension_fechas`
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | no | FK → `estudio` |
 | `causa_id` | UUID | sí | FK → `causa` |
 | `plazo_id` | UUID | sí | FK → `plazo` |
 | `titulo` | VARCHAR(200) | no |  |
@@ -794,7 +783,6 @@ Restricciones de tabla: `ck_evento_tipo`, `ck_evento_fechas`
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | no | FK → `estudio` |
 | `tipo_plazo_id` | UUID | sí | FK → `tipo_plazo` |
 | `dias_anticipacion` | SMALLINT | no |  |
 | `nivel` | VARCHAR(12) | no |  |
@@ -808,7 +796,6 @@ Restricciones de tabla: `ck_regla_alerta_dias`, `ck_regla_alerta_nivel`
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | no | FK → `estudio` |
 | `plazo_id` | UUID | no | FK → `plazo` |
 | `regla_alerta_id` | UUID | sí | FK → `regla_alerta` |
 | `nivel` | VARCHAR(12) | no |  |
@@ -845,7 +832,6 @@ Restricciones de tabla: `ck_notificacion_canal`
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | no | FK → `estudio` |
 | `causa_id` | UUID | no | FK → `causa` |
 | `concepto_costa_id` | UUID | no | FK → `concepto_costa` |
 | `descripcion` | VARCHAR(300) | sí |  |
@@ -887,7 +873,6 @@ Restricciones de tabla: `ck_cobro_monto`, `ck_cobro_medio`
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | sí | FK → `estudio` |
 | `tipo_documento_id` | UUID | sí | FK → `tipo_documento` |
 | `fuero_id` | UUID | sí | FK → `fuero` |
 | `tribunal_id` | UUID | sí | FK → `tribunal` |
@@ -907,7 +892,6 @@ Restricciones de tabla: `ck_plantilla_version`
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | no | FK → `estudio` |
 | `causa_id` | UUID | sí | FK → `causa` |
 | `plazo_id` | UUID | sí | FK → `plazo` |
 | `titulo` | VARCHAR(200) | no |  |
@@ -932,7 +916,6 @@ Restricciones de tabla: `ck_tarea_prioridad`, `ck_tarea_estado`, `ck_tarea_compl
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | UUID | no | **PK** |
-| `estudio_id` | UUID | no | FK → `estudio` |
 | `usuario_id` | UUID | sí | FK → `usuario` |
 | `causa_id` | UUID | sí | FK → `causa` |
 | `documento_id` | UUID | sí | FK → `documento` |
@@ -958,7 +941,6 @@ Restricciones de tabla: `ck_consulta_ia_tipo`, `ck_consulta_ia_estado`, `ck_cons
 | Columna | Tipo | Nulo | Notas |
 |---|---|---|---|
 | `id` | BIGINT | no | **PK**, identidad |
-| `estudio_id` | UUID | sí | FK → `estudio` |
 | `usuario_id` | UUID | sí | FK → `usuario` |
 | `entidad` | VARCHAR(60) | no |  |
 | `entidad_id` | UUID | sí |  |

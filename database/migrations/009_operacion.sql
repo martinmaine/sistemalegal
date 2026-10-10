@@ -5,12 +5,10 @@
 -- -----------------------------------------------------------------------------
 -- plantilla_escrito — banco de modelos de escritos por tipo y por tribunal.
 --
--- estudio_id NULL => plantilla base provista por el sistema.
 -- tribunal_id     => plantilla afinada a las exigencias formales de ese tribunal.
 -- -----------------------------------------------------------------------------
 CREATE TABLE plantilla_escrito (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id          UUID REFERENCES estudio(id)        ON DELETE CASCADE,
     tipo_documento_id   UUID REFERENCES tipo_documento(id) ON DELETE RESTRICT,
     fuero_id            UUID REFERENCES fuero(id)          ON DELETE RESTRICT,
     tribunal_id         UUID REFERENCES tribunal(id)       ON DELETE RESTRICT,
@@ -26,7 +24,6 @@ CREATE TABLE plantilla_escrito (
     CONSTRAINT ck_plantilla_version CHECK (version > 0)
 );
 
-CREATE INDEX ix_plantilla_estudio ON plantilla_escrito (estudio_id) WHERE activa;
 CREATE INDEX ix_plantilla_tribunal ON plantilla_escrito (tribunal_id) WHERE activa;
 
 CREATE TRIGGER tg_plantilla_actualizado
@@ -45,7 +42,6 @@ COMMENT ON COLUMN plantilla_escrito.contenido IS
 -- -----------------------------------------------------------------------------
 CREATE TABLE tarea (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id          UUID NOT NULL REFERENCES estudio(id) ON DELETE RESTRICT,
     causa_id            UUID REFERENCES causa(id) ON DELETE CASCADE,
     plazo_id            UUID REFERENCES plazo(id) ON DELETE SET NULL,
     titulo              VARCHAR(200) NOT NULL,

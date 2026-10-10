@@ -17,14 +17,10 @@
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- tipo_plazo — catálogo de reglas procesales.
---
--- estudio_id NULL  => regla oficial, compartida por todos los estudios.
--- estudio_id != NULL => regla propia del estudio (plazos internos, recordatorios).
+-- tipo_plazo — catálogo de reglas procesales, configurable por el estudio.
 -- -----------------------------------------------------------------------------
 CREATE TABLE tipo_plazo (
     id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id            UUID REFERENCES estudio(id)      ON DELETE CASCADE,
     jurisdiccion_id       UUID NOT NULL REFERENCES jurisdiccion(id) ON DELETE RESTRICT,
     fuero_id              UUID REFERENCES fuero(id)        ON DELETE RESTRICT,
     codigo                VARCHAR(50)  NOT NULL,
@@ -40,15 +36,8 @@ CREATE TABLE tipo_plazo (
     CONSTRAINT ck_tipo_plazo_computo CHECK (computo IN ('HABIL', 'CORRIDO'))
 );
 
--- Unicidad separada para reglas oficiales y reglas propias del estudio:
--- un índice único ordinario trataría los NULL como distintos entre sí.
-CREATE UNIQUE INDEX uq_tipo_plazo_oficial
-    ON tipo_plazo (jurisdiccion_id, codigo)
-    WHERE estudio_id IS NULL;
-
-CREATE UNIQUE INDEX uq_tipo_plazo_estudio
-    ON tipo_plazo (estudio_id, codigo)
-    WHERE estudio_id IS NOT NULL;
+CREATE UNIQUE INDEX uq_tipo_plazo_codigo
+    ON tipo_plazo (jurisdiccion_id, codigo);
 
 COMMENT ON COLUMN tipo_plazo.articulo_referencia IS
     'Norma que funda el plazo, p. ej. el artículo del CPCC de Córdoba. Permite '
@@ -61,13 +50,12 @@ COMMENT ON COLUMN tipo_plazo.computo IS
 -- dia_inhabil — el calendario configurable. Requisito explícito de la propuesta:
 -- "mantener los días inhábiles como dato configurable, nunca fijo en el código".
 --
--- estudio_id NULL  => inhábil oficial de la jurisdicción (feriado, feria).
--- estudio_id != NULL => inhábil propio del estudio (asueto interno).
+-- La columna tipo distingue el inhábil oficial (feriado, feria judicial) del
+-- asueto propio del estudio.
 -- -----------------------------------------------------------------------------
 CREATE TABLE dia_inhabil (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     jurisdiccion_id   UUID NOT NULL REFERENCES jurisdiccion(id) ON DELETE RESTRICT,
-    estudio_id        UUID REFERENCES estudio(id) ON DELETE CASCADE,
     fecha             DATE         NOT NULL,
     tipo              VARCHAR(25)  NOT NULL,
     motivo            VARCHAR(200) NOT NULL,
@@ -79,13 +67,8 @@ CREATE TABLE dia_inhabil (
     )
 );
 
-CREATE UNIQUE INDEX uq_dia_inhabil_oficial
-    ON dia_inhabil (jurisdiccion_id, fecha)
-    WHERE estudio_id IS NULL;
-
-CREATE UNIQUE INDEX uq_dia_inhabil_estudio
-    ON dia_inhabil (estudio_id, fecha)
-    WHERE estudio_id IS NOT NULL;
+CREATE UNIQUE INDEX uq_dia_inhabil_fecha
+    ON dia_inhabil (jurisdiccion_id, fecha);
 
 -- El motor de cómputo consulta por rango de fechas dentro de una jurisdicción.
 CREATE INDEX ix_dia_inhabil_busqueda ON dia_inhabil (jurisdiccion_id, fecha);
@@ -105,7 +88,6 @@ COMMENT ON TABLE dia_inhabil IS
 -- -----------------------------------------------------------------------------
 CREATE TABLE plazo (
     id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id                  UUID NOT NULL REFERENCES estudio(id)   ON DELETE RESTRICT,
     causa_id                    UUID NOT NULL REFERENCES causa(id)     ON DELETE CASCADE,
     tipo_plazo_id               UUID REFERENCES tipo_plazo(id)         ON DELETE RESTRICT,
     descripcion                 VARCHAR(300) NOT NULL,
@@ -140,9 +122,9 @@ CREATE TABLE plazo (
 
 CREATE INDEX ix_plazo_causa ON plazo (causa_id);
 
--- Consulta central del sistema: "¿qué vence próximamente en este estudio?".
+-- Consulta central del sistema: "¿qué vence próximamente?".
 CREATE INDEX ix_plazo_vigilancia
-    ON plazo (estudio_id, fecha_vencimiento)
+    ON plazo (fecha_vencimiento)
     WHERE estado IN ('PENDIENTE', 'SUSPENDIDO');
 
 CREATE INDEX ix_plazo_responsable ON plazo (responsable_id)
@@ -193,7 +175,6 @@ COMMENT ON COLUMN plazo_suspension.fecha_hasta IS
 -- -----------------------------------------------------------------------------
 CREATE TABLE evento_calendario (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id      UUID NOT NULL REFERENCES estudio(id) ON DELETE RESTRICT,
     causa_id        UUID REFERENCES causa(id) ON DELETE CASCADE,
     plazo_id        UUID REFERENCES plazo(id) ON DELETE CASCADE,
     titulo          VARCHAR(200) NOT NULL,
@@ -214,7 +195,7 @@ CREATE TABLE evento_calendario (
 );
 
 CREATE INDEX ix_evento_calendario_rango
-    ON evento_calendario (estudio_id, fecha_inicio, fecha_fin);
+    ON evento_calendario (fecha_inicio, fecha_fin);
 
 CREATE TRIGGER tg_evento_calendario_actualizado
     BEFORE UPDATE ON evento_calendario

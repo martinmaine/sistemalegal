@@ -1,13 +1,13 @@
 -- =============================================================================
--- 003 — Tenencia (multi-estudio) y seguridad
+-- 003 — Datos del estudio y seguridad
 --
--- estudio es la raíz del inquilino: toda tabla de negocio cuelga de ella a
--- través de estudio_id. usuario.estudio_id es NULL únicamente para el rol
--- SUPER_ADMIN, que opera la plataforma y no pertenece a ningún estudio.
+-- El sistema atiende a UN estudio jurídico. La tabla estudio guarda sus datos
+-- (razón social, CUIT, domicilio), que se usan para encabezar los escritos, y
+-- por eso lleva una sola fila: un índice único lo garantiza.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- estudio — el inquilino (tenant).
+-- estudio — datos del estudio jurídico. Fila única.
 -- -----------------------------------------------------------------------------
 CREATE TABLE estudio (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -28,12 +28,16 @@ CREATE TRIGGER tg_estudio_actualizado
     BEFORE UPDATE ON estudio
     FOR EACH ROW EXECUTE FUNCTION fn_actualizar_timestamp();
 
+-- Garantiza una sola fila: el índice es sobre una constante, así que un segundo
+-- INSERT choca contra la misma clave.
+CREATE UNIQUE INDEX uq_estudio_fila_unica ON estudio ((TRUE));
+
 COMMENT ON TABLE estudio IS
-    'Inquilino del sistema. Su jurisdicción determina qué calendario de días '
-    'inhábiles y qué catálogo de tribunales ve por defecto.';
+    'Datos del estudio jurídico, en una fila única. Su jurisdicción determina '
+    'qué calendario de días inhábiles y qué catálogo de tribunales se usa.';
 
 -- -----------------------------------------------------------------------------
--- rol — los cuatro roles jerárquicos declarados en la propuesta (§3.3).
+-- rol — tres roles jerárquicos.
 -- -----------------------------------------------------------------------------
 CREATE TABLE rol (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -43,7 +47,7 @@ CREATE TABLE rol (
     jerarquia    SMALLINT     NOT NULL,
     creado_en    TIMESTAMPTZ  NOT NULL DEFAULT now(),
     CONSTRAINT ck_rol_codigo CHECK (
-        codigo IN ('SUPER_ADMIN', 'ADMIN', 'JEFE_ESTUDIO', 'EMPLEADO')
+        codigo IN ('ADMIN', 'JEFE_ESTUDIO', 'EMPLEADO')
     )
 );
 
@@ -82,7 +86,6 @@ CREATE TABLE rol_permiso (
 -- -----------------------------------------------------------------------------
 CREATE TABLE usuario (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id        UUID REFERENCES estudio(id) ON DELETE RESTRICT,
     rol_id            UUID NOT NULL REFERENCES rol(id) ON DELETE RESTRICT,
     email             VARCHAR(150) NOT NULL,
     password_hash     VARCHAR(255) NOT NULL,
@@ -99,7 +102,6 @@ CREATE TABLE usuario (
 
 -- El login es global, por eso la unicidad del email no se acota al estudio.
 CREATE UNIQUE INDEX uq_usuario_email ON usuario (lower(email));
-CREATE INDEX ix_usuario_estudio ON usuario (estudio_id);
 
 CREATE TRIGGER tg_usuario_actualizado
     BEFORE UPDATE ON usuario
@@ -108,36 +110,6 @@ CREATE TRIGGER tg_usuario_actualizado
 COMMENT ON COLUMN usuario.matricula IS
     'Matrícula profesional. Obligatoria de hecho para abogados, opcional para '
     'personal administrativo, por eso no se restringe en la base.';
-
--- -----------------------------------------------------------------------------
--- Regla de ámbito: SUPER_ADMIN no pertenece a ningún estudio; cualquier otro
--- rol debe pertenecer a uno. No se puede expresar con un CHECK porque el dato
--- que decide (rol.codigo) vive en otra tabla, así que se valida con trigger.
--- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION fn_validar_ambito_usuario()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_codigo_rol VARCHAR(20);
-BEGIN
-    SELECT codigo INTO v_codigo_rol FROM rol WHERE id = NEW.rol_id;
-
-    IF v_codigo_rol = 'SUPER_ADMIN' AND NEW.estudio_id IS NOT NULL THEN
-        RAISE EXCEPTION 'Un SUPER_ADMIN no puede pertenecer a un estudio';
-    END IF;
-
-    IF v_codigo_rol <> 'SUPER_ADMIN' AND NEW.estudio_id IS NULL THEN
-        RAISE EXCEPTION 'El rol % requiere estudio_id', v_codigo_rol;
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER tg_usuario_ambito
-    BEFORE INSERT OR UPDATE OF rol_id, estudio_id ON usuario
-    FOR EACH ROW EXECUTE FUNCTION fn_validar_ambito_usuario();
 
 -- -----------------------------------------------------------------------------
 -- refresh_token — permite revocar sesiones. Se guarda el HASH del token, nunca

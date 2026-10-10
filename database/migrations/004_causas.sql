@@ -12,7 +12,6 @@
 -- -----------------------------------------------------------------------------
 CREATE TABLE persona (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id         UUID NOT NULL REFERENCES estudio(id) ON DELETE RESTRICT,
     tipo_persona       VARCHAR(10)  NOT NULL,
     nombre             VARCHAR(80),
     apellido           VARCHAR(80),
@@ -42,12 +41,10 @@ CREATE TABLE persona (
     )
 );
 
--- Un mismo documento no puede repetirse dentro del estudio entre personas vivas.
+-- Un mismo documento no puede repetirse entre personas vivas.
 CREATE UNIQUE INDEX uq_persona_documento
-    ON persona (estudio_id, tipo_documento, numero_documento)
+    ON persona (tipo_documento, numero_documento)
     WHERE eliminado_en IS NULL AND numero_documento IS NOT NULL;
-
-CREATE INDEX ix_persona_estudio ON persona (estudio_id) WHERE eliminado_en IS NULL;
 
 CREATE TRIGGER tg_persona_actualizado
     BEFORE UPDATE ON persona
@@ -58,7 +55,6 @@ CREATE TRIGGER tg_persona_actualizado
 -- -----------------------------------------------------------------------------
 CREATE TABLE causa (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id         UUID NOT NULL REFERENCES estudio(id)      ON DELETE RESTRICT,
     numero_expediente  VARCHAR(50),
     caratula           VARCHAR(300) NOT NULL,
     tribunal_id        UUID REFERENCES tribunal(id)              ON DELETE RESTRICT,
@@ -79,13 +75,13 @@ CREATE TABLE causa (
     CONSTRAINT ck_causa_monto  CHECK (monto_reclamado IS NULL OR monto_reclamado >= 0)
 );
 
--- El número de expediente es único dentro del estudio, pero puede faltar
--- mientras la causa está en preparación (todavía sin radicar).
+-- El número de expediente es único, pero puede faltar mientras la causa está
+-- en preparación (todavía sin radicar).
 CREATE UNIQUE INDEX uq_causa_expediente
-    ON causa (estudio_id, numero_expediente)
+    ON causa (numero_expediente)
     WHERE eliminado_en IS NULL AND numero_expediente IS NOT NULL;
 
-CREATE INDEX ix_causa_estudio_estado ON causa (estudio_id, estado_causa_id)
+CREATE INDEX ix_causa_estado ON causa (estado_causa_id)
     WHERE eliminado_en IS NULL;
 CREATE INDEX ix_causa_tribunal ON causa (tribunal_id);
 

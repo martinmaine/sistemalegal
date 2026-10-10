@@ -12,7 +12,6 @@
 
 CREATE TABLE costa (
     id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    estudio_id               UUID NOT NULL REFERENCES estudio(id)        ON DELETE RESTRICT,
     causa_id                 UUID NOT NULL REFERENCES causa(id)          ON DELETE CASCADE,
     concepto_costa_id        UUID NOT NULL REFERENCES concepto_costa(id) ON DELETE RESTRICT,
     descripcion              VARCHAR(300),
@@ -41,13 +40,13 @@ CREATE TABLE costa (
 
 CREATE INDEX ix_costa_causa ON costa (causa_id);
 
--- Consulta del tablero de cobranza: qué queda por cobrar en el estudio.
+-- Consulta del tablero de cobranza: qué queda por cobrar.
 CREATE INDEX ix_costa_pendiente
-    ON costa (estudio_id, fecha_vencimiento_pago)
+    ON costa (fecha_vencimiento_pago)
     WHERE estado_cobro IN ('PENDIENTE', 'PARCIAL');
 
 -- Reporte de gastos por período.
-CREATE INDEX ix_costa_devengamiento ON costa (estudio_id, fecha_devengamiento);
+CREATE INDEX ix_costa_devengamiento ON costa (fecha_devengamiento);
 
 CREATE TRIGGER tg_costa_actualizado
     BEFORE UPDATE ON costa
