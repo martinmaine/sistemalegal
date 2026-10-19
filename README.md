@@ -9,7 +9,8 @@ análisis de textos legales y como apoyo a la búsqueda de jurisprudencia.
 - **Arquitectura:** preparada para configurar otras provincias (días inhábiles y formatos de
   tribunales configurables); el MVP se valida solo con Córdoba.
 - **Estado:** en desarrollo — Versión 0.1.0 (MVP, Fase 1). Esquema de base de datos
-  y módulos definidos (2.ª entrega); implementación a partir del Sprint S0.
+  y módulos definidos (2.ª entrega). **Sprint S0** en curso: andamiaje, entorno local
+  con Docker y despliegue continuo funcionando de punta a punta.
 
 > **Trabajo Final Integrador** — Tecnicatura Universitaria en Programación a Distancia.
 >
@@ -18,6 +19,8 @@ análisis de textos legales y como apoyo a la búsqueda de jurisprudencia.
 > **2.ª entrega** — [arquitectura](docs/arquitectura.md) ·
 > [esquema de base de datos](docs/esquema-base-de-datos.md) ·
 > [listado de módulos](docs/listado-modulos.md)
+>
+> **Despliegue** — [pasos de instalación y publicación](docs/despliegue.md)
 
 ---
 
@@ -101,31 +104,39 @@ sistemalegal/
 │   ├── migrations/        Migraciones versionadas (fuente de verdad)
 │   ├── seed/              Catálogos base y datos ficticios
 │   └── schema.sql         Esquema consolidado
-├── frontend/              Aplicación React + TypeScript    (Sprint S0)
-└── backend/               API Node + Express + TypeScript  (Sprint S0)
+├── frontend/              Aplicación React + TypeScript
+├── backend/               API Node + Express + TypeScript
+├── docker-compose.yml     Entorno local completo
+└── render.yaml            Configuración del servicio en Render
 ```
 
-> Esta entrega corresponde a la etapa de **análisis y diseño**: `docs/` y
-> `database/` tienen el contenido, y `frontend/` y `backend/` quedan creadas con
-> su estructura declarada. La codificación comienza una vez aprobada la entrega.
+> **Sprint S0.** `frontend/` y `backend/` ya tienen el andamiaje y el módulo
+> `causas` reducido a un listado de lectura, que recorre la cadena completa
+> —SPA, API, base— y sirve de molde para los 11 módulos restantes. Las
+> funcionalidades entran a partir del Sprint S1.
 
 ---
 
 ## Instalación (entorno local)
 
-> Instrucciones preliminares. Se completarán cuando exista código en el repositorio.
-
-Requisitos: [Docker](https://www.docker.com/) y Docker Compose.
+Requisitos: [Docker](https://www.docker.com/) y Docker Compose. No hace falta instalar
+Node ni PostgreSQL.
 
 ```bash
 git clone https://github.com/martinmaine/sistemalegal.git
 cd sistemalegal
-cp .env.example .env      # completar variables (BD, JWT_SECRET, CLAUDE_API_KEY opcional)
+cp .env.example .env      # los valores por defecto ya sirven para el entorno local
 docker compose up
 ```
 
-Esto levantará el frontend, el backend, el microservicio PDF y una base PostgreSQL con datos
-de prueba ficticios.
+Levanta el frontend en http://localhost:5173, el backend en http://localhost:4000 y una
+base PostgreSQL con el esquema y los datos ficticios ya aplicados. El microservicio PDF se
+suma cuando entre el módulo de documentos.
+
+> Si ya tenés un PostgreSQL ocupando el puerto 5432, poné `PUERTO_DB=5433` en el `.env`.
+
+Los pasos de publicación en Neon, Render y Vercel están en
+[`docs/despliegue.md`](docs/despliegue.md).
 
 ### Solo la base de datos (disponible ahora)
 

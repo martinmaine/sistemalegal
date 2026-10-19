@@ -1,0 +1,68 @@
+# Entorno local completo. Es también el respaldo de la defensa oral: no depende
+# de la conectividad ni de que los servicios gratuitos estén despiertos
+# (docs/arquitectura.md, sección 6).
+name: sistemalegal
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpass}
+      POSTGRES_DB: ${POSTGRES_DB:-sistemalegal}
+    ports:
+      # Puerto del host configurable: si ya tenes un PostgreSQL en 5432,
+      # pone PUERTO_DB=5433 en el .env. El backend no se entera, porque
+      # dentro de la red de compose siempre habla con db:5432.
+      - '${PUERTO_DB:-5432}:5432'
+    volumes:
+      # postgres:18 espera el mount en /var/lib/postgresql, no en /data: desde esa
+      # version los datos van en un subdirectorio por version mayor.
+      - datos-db:/var/lib/postgresql
+      - ./database:/database:ro
+      - ./database/docker/10-esquema-y-seeds.sh:/docker-entrypoint-initdb.d/10-esquema-y-seeds.sh:ro
+    healthcheck:
+      # Consultar `causa` y no pg_isready: la imagen levanta un servidor temporal
+      # para inicializar, así que pg_isready dice "listo" antes de que el esquema
+      # y los seeds estén aplicados (database/README.md lo advierte).
+      test: ['CMD-SHELL', 'psql -U postgres -d sistemalegal -c "select count(*) from causa" > /dev/null 2>&1']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  backend:
+    build:
+      context: ./backend
+      target: desarrollo
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-devpass}@db:5432/${POSTGRES_DB:-sistemalegal}
+      CORS_ORIGIN: http://localhost:5173
+    ports:
+      - '4000:4000'
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src:ro
+      - ./backend/tests:/app/tests:ro
+
+  frontend:
+    build:
+      context: ./frontend
+      target: desarrollo
+    environment:
+      # La URL la usa el navegador, no el contenedor: va localhost, no "backend".
+      VITE_API_URL: http://localhost:4000
+    ports:
+      - '5173:5173'
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src:ro
+      - ./frontend/index.html:/app/index.html:ro
+
+volumes:
+  datos-db:
