@@ -20,5 +20,7 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=compilacion /app/dist ./dist
+# La CA de Supabase: sin ella el backend no puede verificar el certificado del pooler.
+COPY certs ./certs
 EXPOSE 4000
 CMD ["node", "dist/index.js"]

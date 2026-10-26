@@ -206,6 +206,7 @@ red, es CORS: revisar el paso 3.4.
 | `base: sin-conexion` con credenciales correctas | Se usó la conexión directa, que es IPv6, y Render no tiene salida IPv6 | Usar la cadena del pooler compartido (paso 3.1). |
 | El build de Vercel no encuentra `package.json` | Falta *Root Directory* `frontend` | Paso 3.3.3. |
 | Error de red solo desde el dominio de Vercel | `CORS_ORIGIN` sin el dominio de producción | Paso 3.4. |
+| `self-signed certificate in certificate chain` | Falta la CA de Supabase, o el `sslmode` de la URL pisó la configuración de TLS | La CA está en `backend/certs/supabase-ca.crt` y el código quita el `sslmode` de la cadena. Si cambiaste eso, revisá `backend/src/db.ts`. |
 | El esquema quedó a medias | Se corrió `psql` sin `ON_ERROR_STOP=1` | Borrar y recrear el proyecto en Supabase, y reaplicar. |
 | El DDL falla raro al migrar | Se usó el pooler en modo transacción para las migraciones | Usar la cadena de modo sesión, puerto `5432`. |
 
