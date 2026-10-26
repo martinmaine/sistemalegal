@@ -1,0 +1,202 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, consulta } from './api';
+import type {
+  Catalogos,
+  CausaDetalle,
+  CausaListada,
+  DetalleCausa,
+  DetallePersona,
+  DocumentoCausa,
+  EstadoSalud,
+  MovimientoCausa,
+  Pagina,
+  Panel,
+  PersonaListada,
+  PlazoCausa,
+  TareaCausa,
+} from '../tipos/api';
+
+/**
+ * Acceso a datos remotos.
+ *
+ * Todas las consultas pasan por acá: ninguna pantalla llama a fetch por su
+ * cuenta. Eso mantiene las claves de caché en un solo lugar —si estuvieran
+ * repartidas, invalidar después de un alta sería adivinar— y hace que los
+ * estados de carga y error se comporten igual en todo el producto.
+ */
+
+/** Claves de caché. Jerárquicas, para poder invalidar por rama. */
+export const claves = {
+  panel: ['panel'] as const,
+  catalogos: ['catalogos'] as const,
+  causas: ['causas'] as const,
+  listaCausas: (filtros: FiltrosCausa) => ['causas', 'lista', filtros] as const,
+  causa: (id: string) => ['causas', 'detalle', id] as const,
+  pestanaCausa: (id: string, pestana: string) => ['causas', 'detalle', id, pestana] as const,
+  personas: ['personas'] as const,
+  listaPersonas: (filtros: FiltrosPersona) => ['personas', 'lista', filtros] as const,
+  persona: (id: string) => ['personas', 'detalle', id] as const,
+  salud: ['salud'] as const,
+};
+
+export interface FiltrosCausa {
+  pagina: number;
+  tamano: number;
+  busqueda?: string;
+  estado?: string;
+  fuero?: string;
+  tribunal?: string;
+  responsable?: string;
+  vigencia: 'todas' | 'activas' | 'cerradas';
+  orden: 'fecha_inicio' | 'caratula' | 'numero_expediente' | 'estado' | 'proximo_vencimiento';
+  direccion: 'asc' | 'desc';
+}
+
+export interface FiltrosPersona {
+  pagina: number;
+  tamano: number;
+  busqueda?: string;
+  tipo?: 'FISICA' | 'JURIDICA';
+  soloClientes?: boolean;
+}
+
+/* --- Panel ----------------------------------------------------------------- */
+
+export function usePanel() {
+  return useQuery({
+    queryKey: claves.panel,
+    queryFn: () => api.obtener<Panel>('/api/panel'),
+  });
+}
+
+/* --- Catálogos -------------------------------------------------------------
+   Cambian muy poco: se cachean por una hora para no repetir la consulta en
+   cada pantalla que arma un desplegable. */
+
+export function useCatalogos() {
+  return useQuery({
+    queryKey: claves.catalogos,
+    queryFn: () => api.obtener<Catalogos>('/api/catalogos'),
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+/* --- Causas ---------------------------------------------------------------- */
+
+export function useCausas(filtros: FiltrosCausa) {
+  return useQuery({
+    queryKey: claves.listaCausas(filtros),
+    queryFn: () =>
+      api.obtener<Pagina<CausaListada>>(
+        `/api/causas${consulta({
+          pagina: filtros.pagina,
+          tamano: filtros.tamano,
+          busqueda: filtros.busqueda,
+          estado: filtros.estado,
+          fuero: filtros.fuero,
+          tribunal: filtros.tribunal,
+          responsable: filtros.responsable,
+          vigencia: filtros.vigencia,
+          orden: filtros.orden,
+          direccion: filtros.direccion,
+        })}`,
+      ),
+    // Mantiene la tabla anterior mientras llega la nueva página: sin esto, cada
+    // cambio de filtro vaciaría la pantalla y el contenido saltaría.
+    placeholderData: (previo) => previo,
+  });
+}
+
+export function useCausa(id: string | undefined) {
+  return useQuery({
+    queryKey: claves.causa(id ?? ''),
+    queryFn: () => api.obtener<DetalleCausa>(`/api/causas/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+/** Contenido de una pestaña del detalle. Se pide recién cuando la pestaña se abre. */
+function usePestanaCausa<T>(id: string | undefined, pestana: string, activa: boolean) {
+  return useQuery({
+    queryKey: claves.pestanaCausa(id ?? '', pestana),
+    queryFn: () => api.obtener<{ datos: T[] }>(`/api/causas/${id}/${pestana}`).then((r) => r.datos),
+    enabled: Boolean(id) && activa,
+  });
+}
+
+export const useMovimientosCausa = (id: string | undefined, activa: boolean) =>
+  usePestanaCausa<MovimientoCausa>(id, 'movimientos', activa);
+
+export const usePlazosCausa = (id: string | undefined, activa: boolean) =>
+  usePestanaCausa<PlazoCausa>(id, 'plazos', activa);
+
+export const useDocumentosCausa = (id: string | undefined, activa: boolean) =>
+  usePestanaCausa<DocumentoCausa>(id, 'documentos', activa);
+
+export const useTareasCausa = (id: string | undefined, activa: boolean) =>
+  usePestanaCausa<TareaCausa>(id, 'tareas', activa);
+
+export interface DatosNuevaCausa {
+  caratula: string;
+  numero_expediente?: string;
+  fuero_id: string;
+  estado_causa_id: string;
+  tribunal_id?: string;
+  tipo_causa_id?: string;
+  fecha_inicio: string;
+  observaciones?: string;
+}
+
+export function useCrearCausa() {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (datos: DatosNuevaCausa) =>
+      api.enviar<{ causa: CausaDetalle }>('/api/causas', datos).then((r) => r.causa),
+    onSuccess: () => {
+      // El alta cambia el listado y las cifras del panel; ambos se refrescan
+      // solos en lugar de quedar mostrando el estado anterior.
+      void cliente.invalidateQueries({ queryKey: claves.causas });
+      void cliente.invalidateQueries({ queryKey: claves.panel });
+    },
+  });
+}
+
+/* --- Personas -------------------------------------------------------------- */
+
+export function usePersonas(filtros: FiltrosPersona) {
+  return useQuery({
+    queryKey: claves.listaPersonas(filtros),
+    queryFn: () =>
+      api.obtener<Pagina<PersonaListada>>(
+        `/api/personas${consulta({
+          pagina: filtros.pagina,
+          tamano: filtros.tamano,
+          busqueda: filtros.busqueda,
+          tipo: filtros.tipo,
+          soloClientes: filtros.soloClientes ? 'true' : undefined,
+        })}`,
+      ),
+    placeholderData: (previo) => previo,
+  });
+}
+
+export function usePersona(id: string | undefined) {
+  return useQuery({
+    queryKey: claves.persona(id ?? ''),
+    queryFn: () => api.obtener<DetallePersona>(`/api/personas/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+/* --- Diagnóstico ----------------------------------------------------------- */
+
+export function useSalud() {
+  return useQuery({
+    queryKey: claves.salud,
+    queryFn: () => api.obtener<EstadoSalud>('/health'),
+    // El diagnóstico sirve para ver el estado de ahora, no uno cacheado.
+    staleTime: 0,
+    gcTime: 0,
+  });
+}

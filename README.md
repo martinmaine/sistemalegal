@@ -9,8 +9,10 @@ análisis de textos legales y como apoyo a la búsqueda de jurisprudencia.
 - **Arquitectura:** preparada para configurar otras provincias (días inhábiles y formatos de
   tribunales configurables); el MVP se valida solo con Córdoba.
 - **Estado:** en desarrollo — Versión 0.1.0 (MVP, Fase 1). Esquema de base de datos
-  y módulos definidos (2.ª entrega). **Sprint S0** en curso: andamiaje, entorno local
-  con Docker y despliegue continuo funcionando de punta a punta.
+  y módulos definidos (2.ª entrega). **Fase 1 de producto completa**: autenticación con
+  roles y permisos verificados en el servidor, panel de inicio, expedientes con su
+  detalle y agenda de clientes, sobre datos reales de la base
+  ([informe de la fase](docs/fase-1-fundaciones.md)).
 
 > **Trabajo Final Integrador** — Tecnicatura Universitaria en Programación a Distancia.
 >
@@ -110,10 +112,11 @@ sistemalegal/
 └── render.yaml            Configuración del servicio en Render
 ```
 
-> **Sprint S0.** `frontend/` y `backend/` ya tienen el andamiaje y el módulo
-> `causas` reducido a un listado de lectura, que recorre la cadena completa
-> —SPA, API, base— y sirve de molde para los 11 módulos restantes. Las
-> funcionalidades entran a partir del Sprint S1.
+> **Fase 1.** El backend expone autenticación, panel, causas, personas y catálogos;
+> el frontend tiene su sistema de diseño, su estructura de navegación y las tres
+> pantallas centrales funcionando contra la API. El detalle de qué quedó hecho, qué
+> decisiones se tomaron y qué falta está en
+> [`docs/fase-1-fundaciones.md`](docs/fase-1-fundaciones.md).
 
 ---
 
@@ -134,6 +137,22 @@ base PostgreSQL con el esquema y los datos ficticios ya aplicados. El microservi
 suma cuando entre el módulo de documentos.
 
 > Si ya tenés un PostgreSQL ocupando el puerto 5432, poné `PUERTO_DB=5433` en el `.env`.
+
+Para entrar se usa cualquiera de los usuarios de demostración, todos con la contraseña
+`Demo1234!`:
+
+| Correo | Rol | Qué puede hacer |
+|---|---|---|
+| `admin@estudiodemo.test` | Administrador | Todo, incluidas usuarios y configuración |
+| `jefe@estudiodemo.test` | Jefe de Estudio | Todo salvo usuarios y configuración |
+| `empleado1@estudiodemo.test` | Empleado | Opera el día a día; no elimina ni ve auditoría |
+
+Los permisos no están en el código: son filas de `rol_permiso`, y el backend los
+verifica en cada petición.
+
+> Estas credenciales existen solo en los datos ficticios de
+> `database/seed/002_datos_demo.sql`. En una instalación real el administrador crea
+> los usuarios del estudio.
 
 Los pasos de publicación en Supabase, Render y Vercel están en
 [`docs/despliegue.md`](docs/despliegue.md).
