@@ -11,7 +11,8 @@ const servidor = crearApp().listen(config.puerto, () => {
   }
 });
 
-/** Render envía SIGTERM al redesplegar: cerrar el pool evita conexiones colgadas en Neon. */
+/** Render envía SIGTERM al redesplegar: cerrar el pool evita conexiones colgadas
+ * en el pooler de Supabase, que tiene un tope bajo en la capa gratuita. */
 for (const senal of ['SIGTERM', 'SIGINT'] as const) {
   process.on(senal, () => {
     console.log(`[api] ${senal} recibido, cerrando`);

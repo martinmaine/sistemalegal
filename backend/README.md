@@ -37,8 +37,8 @@ npm run build      # compila a dist/
 | `GET` | `/api/causas` | Lista las causas no eliminadas, con su fuero y estado. Acepta `?limite=`. |
 
 `/health` devuelve 200 incluso con la base caída, y el estado real va en el
-cuerpo: si devolviera 500, Render reiniciaría el servicio cada vez que Neon se
-autosuspende.
+cuerpo: si devolviera 500, Render reiniciaría el servicio cada vez que la base se
+pausa.
 
 ## Estructura
 

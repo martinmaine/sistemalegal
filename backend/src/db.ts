@@ -7,8 +7,8 @@ import { config } from './config';
  * Se crea en el primer uso, no al importar el módulo: así /health responde
  * aunque DATABASE_URL falte, y el error aparece en la respuesta del endpoint.
  *
- * Neon exige TLS y corta las conexiones inactivas cuando el proyecto se
- * autosuspende, de ahí el `ssl` y el `idleTimeoutMillis` corto.
+ * Supabase exige TLS, y el pooler compartido corta las conexiones inactivas,
+ * de ahí el `ssl` y el `idleTimeoutMillis` corto.
  */
 
 let pool: Pool | undefined;
@@ -21,7 +21,7 @@ export function obtenerPool(): Pool {
     pool = new Pool({
       connectionString: config.urlBaseDatos,
       // Verificación del certificado activada. Si alguna vez falla contra el
-      // pooler de Neon, la solución es sumar su CA al almacén de confianza, no
+      // pooler de Supabase, la solución es sumar su CA al almacén de confianza, no
       // desactivar la verificación: eso deja la conexión abierta a un intermediario.
       ssl: requiereTls(config.urlBaseDatos) ? { rejectUnauthorized: true } : undefined,
       max: 5,
@@ -40,11 +40,16 @@ export async function cerrarPool(): Promise<void> {
 }
 
 /**
- * El Postgres local de docker compose no tiene TLS; Neon y Supabase lo exigen.
- * La cadena de Neon ya trae sslmode=require, así que alcanza con mirarla.
+ * El Postgres local de docker compose no tiene TLS; Supabase y Neon lo exigen.
+ * La cadena que da el panel ya trae sslmode=require, así que alcanza con mirarla.
  */
 function requiereTls(url: string): boolean {
-  return url.includes('sslmode=require') || url.includes('neon.tech') || url.includes('supabase');
+  return (
+    url.includes('sslmode=require') ||
+    url.includes('supabase.com') ||
+    url.includes('supabase.co') ||
+    url.includes('neon.tech')
+  );
 }
 
 export type EstadoBase = { conectada: true; version: string } | { conectada: false; error: string };

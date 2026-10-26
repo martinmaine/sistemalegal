@@ -18,7 +18,9 @@ services:
         value: '24'
       - key: NODE_ENV
         value: production
-      # Cadena de conexión de Neon, con sslmode=require.
+      # Cadena de conexión de Supabase. Tiene que ser la del POOLER compartido en
+      # modo transacción (aws-X-REGION.pooler.supabase.com:6543), no la conexión
+      # directa: esa es IPv6 y Render no tiene salida IPv6.
       - key: DATABASE_URL
         sync: false
       # Dominio de producción de Vercel.
