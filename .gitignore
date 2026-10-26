@@ -22,3 +22,6 @@ Thumbs.db
 dist/
 build/
 .vite/
+
+# Configuración local de herramientas de desarrollo
+.claude/
