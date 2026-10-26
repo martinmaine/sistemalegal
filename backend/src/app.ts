@@ -1,8 +1,14 @@
 import express, { type Express } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { config, origenAutorizado } from './config';
 import { verificarBase } from './db';
+import { requiereSesion } from './middlewares/autenticacion';
+import { rutasAuth } from './modulos/auth/rutas';
 import { rutasCausas } from './modulos/causas/rutas';
+import { rutasCatalogos } from './modulos/catalogos/rutas';
+import { rutasPanel } from './modulos/panel/rutas';
+import { rutasPersonas } from './modulos/personas/rutas';
 import { manejadorErrores, noEncontrado } from './middlewares/manejador-errores';
 
 /**
@@ -13,6 +19,11 @@ import { manejadorErrores, noEncontrado } from './middlewares/manejador-errores'
 export function crearApp(): Express {
   const app = express();
 
+  // Render y Vercel ponen un proxy delante: sin esto, req.ip sería siempre la
+  // del proxy y el límite de intentos de login se aplicaría a todo el mundo
+  // junto. Se confía en un solo salto, no en toda la cadena de X-Forwarded-For.
+  app.set('trust proxy', 1);
+
   app.use(
     cors({
       origin(origen, callback) {
@@ -21,9 +32,14 @@ export function crearApp(): Express {
         if (origenAutorizado(origen)) return callback(null, true);
         return callback(new Error(`Origen no autorizado: ${origen}`));
       },
+      // El refresh token viaja en cookie: sin esto el navegador no la manda.
+      credentials: true,
     }),
   );
-  app.use(express.json());
+  // Tope de tamaño: sin límite explícito, un cuerpo enorme es una forma barata
+  // de tumbar el servicio. Los archivos no viajan por acá, van por subida directa.
+  app.use(express.json({ limit: '1mb' }));
+  app.use(cookieParser());
 
   /**
    * Health check de Render.
@@ -47,7 +63,15 @@ export function crearApp(): Express {
     });
   });
 
+  app.use('/api/auth', rutasAuth);
+
+  // Todo lo que sigue exige sesión. Se aplica acá y no ruta por ruta para que
+  // agregar un módulo nuevo no pueda olvidarse de protegerlo.
+  app.use('/api', requiereSesion);
+  app.use('/api/panel', rutasPanel);
   app.use('/api/causas', rutasCausas);
+  app.use('/api/personas', rutasPersonas);
+  app.use('/api/catalogos', rutasCatalogos);
 
   app.use(noEncontrado);
   app.use(manejadorErrores);
