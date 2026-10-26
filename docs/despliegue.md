@@ -100,21 +100,20 @@ tarea usa el suyo.
    # Modo sesion, puerto 5432: la de las migraciones.
    export DATABASE_URL='postgresql://postgres.abcdefgh:CLAVE@aws-0-sa-east-1.pooler.supabase.com:5432/postgres?sslmode=require'
 
-   docker run --rm -v "$(pwd)/database:/database:ro" postgres:18 \
-     psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /database/schema.sql
-   docker run --rm -v "$(pwd)/database:/database:ro" postgres:18 \
-     psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /database/seed/001_catalogos.sql
-   docker run --rm -v "$(pwd)/database:/database:ro" postgres:18 \
-     psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /database/seed/002_datos_demo.sql
+   ./database/aplicar-remoto.sh
    ```
 
-   > En Git Bash sobre Windows, si la ruta del volumen se traduce mal, prefijar el
-   > comando con `MSYS_NO_PATHCONV=1`.
+   El script aplica `schema.sql` y los dos seeds en orden, con `ON_ERROR_STOP=1`
+   —sin eso `psql` sigue después de un error y el esquema queda a medias
+   pareciendo que funcionó—, y al final cuenta las filas para que se vea que
+   quedó bien. Si le pasás la cadena equivocada —la de modo transacción o la
+   conexión directa— se planta y te lo dice, en lugar de fallar a mitad de camino.
 
-   El `-v ON_ERROR_STOP=1` no es opcional: sin él `psql` sigue después de un error
-   y el esquema queda a medias pareciendo que funcionó.
+   La cadena viaja al contenedor por variable de entorno, así que no queda en la
+   línea de comandos ni en el historial del shell.
 
-5. Verificar: `docker run --rm postgres:18 psql "$DATABASE_URL" -c "select count(*) from causa"`.
+5. Verificar: el propio script cuenta causas, fueros y estados al terminar. Si
+   esos números dan cero, los seeds no entraron.
 
 > Las extensiones son el único punto donde Supabase difiere de un PostgreSQL
 > común: las instala en el esquema `extensions` y no en `public`. El esquema ya
