@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "comment": "Reescritura de SPA: Vercel sirve primero los archivos que existen y solo cae a index.html para las rutas del router. Sin esto, recargar una URL profunda da 404 cuando entre react-router.",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

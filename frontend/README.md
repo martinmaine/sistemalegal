@@ -49,5 +49,18 @@ frontend/
 └── public/
 ```
 
+## Despliegue
+
+Vercel, con *root directory* `frontend`. La configuración está en `vercel.json`.
+
+La reescritura que declara ahí manda todas las rutas a `index.html`. Vercel
+sirve primero los archivos que existen, así que los assets no se ven afectados;
+hace falta para que recargar una URL profunda no dé 404 cuando entre el router
+en el Sprint S1.
+
+> `vercel.json` no admite propiedades fuera del esquema de Vercel: una clave
+> `comment` para documentarlo hace fallar el import con «should NOT have
+> additional property». Por eso esto se explica acá y no ahí.
+
 Ver [`../docs/arquitectura.md`](../docs/arquitectura.md) y
 [`../docs/despliegue.md`](../docs/despliegue.md).
