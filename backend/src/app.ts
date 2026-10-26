@@ -29,8 +29,8 @@ export function crearApp(): Express {
    * Health check de Render.
    *
    * Devuelve 200 incluso si la base no responde, y el estado real va en el
-   * cuerpo. Si devolviera 500, Render reiniciaría el servicio cada vez que Neon
-   * se autosuspende en la capa gratuita, que es justo lo que no queremos.
+   * cuerpo. Si devolviera 500, Render reiniciaría el servicio cada vez que la
+   * base se pausa en la capa gratuita, que es justo lo que no queremos.
    */
   app.get('/health', async (_req, res) => {
     const base = await verificarBase().catch((error: unknown) => ({

@@ -79,7 +79,7 @@ con el Poder Judicial · portal de cliente · operación multi-provincia activa.
 |---|---|---|
 | Frontend (SPA) | React + TypeScript (Vite) | Vercel |
 | Backend / API REST | Node.js + Express + TypeScript | Render |
-| Base de datos | PostgreSQL | Neon (alternativa: Supabase) |
+| Base de datos | PostgreSQL | Supabase (alternativa: Neon) |
 | Microservicio PDF → texto | Python + FastAPI + `pdfplumber` | Render (servicio separado) |
 | IA | Claude API (Anthropic) | SaaS externo (opcional) |
 | Autenticación | JWT + Passport.js | — |
@@ -135,7 +135,7 @@ suma cuando entre el módulo de documentos.
 
 > Si ya tenés un PostgreSQL ocupando el puerto 5432, poné `PUERTO_DB=5433` en el `.env`.
 
-Los pasos de publicación en Neon, Render y Vercel están en
+Los pasos de publicación en Supabase, Render y Vercel están en
 [`docs/despliegue.md`](docs/despliegue.md).
 
 ### Solo la base de datos (disponible ahora)

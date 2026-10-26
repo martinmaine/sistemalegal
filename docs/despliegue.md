@@ -15,7 +15,7 @@ Navegador
    │      │
    │      └─▶ API     Render   (root directory: backend/, blueprint: render.yaml)
    │             │
-   │             └─▶ PostgreSQL   Neon   (migrations + seeds aplicados con psql)
+   │             └─▶ PostgreSQL   Supabase   (esquema y seeds aplicados con psql)
 ```
 
 Tres servicios independientes, cada uno en la capa gratuita de su plataforma.
@@ -63,37 +63,63 @@ Y abrir http://localhost:5173, que tiene que listar las causas del seed.
 
 ## 3. Producción
 
-El orden importa: Render necesita la cadena de Neon, y Vercel necesita la URL de
+El orden importa: Render necesita la cadena de Supabase, y Vercel necesita la URL de
 Render. El último paso vuelve sobre Render porque CORS necesita el dominio de
 Vercel, que todavía no existe cuando se crea la API.
 
-### 3.1 Neon — base de datos
+### 3.1 Supabase — base de datos
 
-1. Crear cuenta en [neon.tech](https://neon.tech) (conviene entrar con GitHub).
-2. **New project**: nombre `sistemalegal`, región **São Paulo (sa-east-1)**, la más
-   cercana a Córdoba. PostgreSQL 17 o superior.
-3. Copiar la *connection string* del panel. Trae `?sslmode=require`: no quitarlo.
-4. Aplicar el esquema y los seeds. Si no tenés `psql` instalado, el cliente sale
-   de la imagen de Docker, sin instalar nada:
+> **Lo más importante de esta página.** Supabase muestra por defecto la
+> *conexión directa* (`db.<ref>.supabase.co`), y esa **no sirve para Render**: es
+> IPv6, y Render no tiene salida IPv6. Hay que usar el **pooler compartido**
+> (Supavisor), que es IPv4 en todos los planes. Si la API en Render dice
+> `sin-conexion` con las credenciales correctas, el problema es este.
+
+Y no es una cadena sino dos, porque se usan en modos distintos:
+
+| Para qué | Modo | Puerto |
+|---|---|---|
+| Aplicar el esquema con `psql` | sesión | `5432` |
+| La API corriendo en Render | transacción | `6543` |
+
+El modo transacción no acompaña bien al DDL de las migraciones; el modo sesión
+sí, pero el recomendado para un servicio web es el de transacción. Por eso cada
+tarea usa el suyo.
+
+1. Crear cuenta en [supabase.com](https://supabase.com) (conviene entrar con GitHub).
+2. **New project**: nombre `sistemalegal`, región **South America (São Paulo)**, la
+   más cercana a Córdoba. Guardar la contraseña de la base: se muestra una sola vez.
+3. Ir a **Connect** (arriba, junto al nombre del proyecto) y copiar las cadenas de
+   **Session pooler** y **Transaction pooler**. El host se copia del panel tal cual
+   (`aws-X-REGION.pooler.supabase.com`), no se arma a mano, y el usuario viene con
+   la forma `postgres.<ref-del-proyecto>`.
+4. Aplicar el esquema y los seeds **con la cadena de modo sesión**. Si no tenés
+   `psql` instalado, el cliente sale de la imagen de Docker, sin instalar nada:
 
    ```bash
-   export DATABASE_URL='postgresql://...@ep-xxx.sa-east-1.aws.neon.tech/neondb?sslmode=require'
+   # Modo sesion, puerto 5432: la de las migraciones.
+   export DATABASE_URL='postgresql://postgres.abcdefgh:CLAVE@aws-0-sa-east-1.pooler.supabase.com:5432/postgres?sslmode=require'
 
-   docker run --rm -v "$(pwd)/database:/database:ro" postgres:18 \
-     psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /database/schema.sql
-   docker run --rm -v "$(pwd)/database:/database:ro" postgres:18 \
-     psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /database/seed/001_catalogos.sql
-   docker run --rm -v "$(pwd)/database:/database:ro" postgres:18 \
-     psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /database/seed/002_datos_demo.sql
+   ./database/aplicar-remoto.sh
    ```
 
-   > En Git Bash sobre Windows, si la ruta del volumen se traduce mal, prefijar el
-   > comando con `MSYS_NO_PATHCONV=1`.
+   El script aplica `schema.sql` y los dos seeds en orden, con `ON_ERROR_STOP=1`
+   —sin eso `psql` sigue después de un error y el esquema queda a medias
+   pareciendo que funcionó—, y al final cuenta las filas para que se vea que
+   quedó bien. Si le pasás la cadena equivocada —la de modo transacción o la
+   conexión directa— se planta y te lo dice, en lugar de fallar a mitad de camino.
 
-   El `-v ON_ERROR_STOP=1` no es opcional: sin él `psql` sigue después de un error
-   y el esquema queda a medias pareciendo que funcionó.
+   La cadena viaja al contenedor por variable de entorno, así que no queda en la
+   línea de comandos ni en el historial del shell.
 
-5. Verificar: `docker run --rm postgres:18 psql "$DATABASE_URL" -c "select count(*) from causa"`.
+5. Verificar: el propio script cuenta causas, fueros y estados al terminar. Si
+   esos números dan cero, los seeds no entraron.
+
+> Las extensiones son el único punto donde Supabase difiere de un PostgreSQL
+> común: las instala en el esquema `extensions` y no en `public`. El esquema ya
+> lo contempla —`fn_sin_acentos()` declara su propio `search_path` nombrando los
+> dos—, así que no hay nada que ajustar. El detalle está en
+> [`database/README.md`](../database/README.md).
 
 ### 3.2 Render — API
 
@@ -105,12 +131,14 @@ Vercel, que todavía no existe cuando se crea la API.
 
    | Variable | Valor |
    |---|---|
-   | `DATABASE_URL` | la cadena de Neon, con `sslmode=require` |
+   | `DATABASE_URL` | la cadena del **pooler en modo transacción** (puerto `6543`), con `sslmode=require` |
    | `CORS_ORIGIN` | provisorio `http://localhost:5173`; se corrige en el paso 3.4 |
 
 4. Esperar el despliegue y comprobar `https://sistemalegal-api.onrender.com/health`.
-   Tiene que responder `"base": "conectada"`. Si dice `sin-conexion`, el problema
-   está en `DATABASE_URL`, y el campo `detalleBase` lo aclara.
+   Tiene que responder `"base": "conectada"`. Si dice `sin-conexion`, el campo
+   `detalleBase` lo aclara. El error más probable es haber pegado la conexión
+   directa en vez de la del pooler: ahí el detalle habla de red o de host
+   inalcanzable, no de credenciales.
 
 ### 3.3 Vercel — SPA
 
@@ -145,7 +173,7 @@ sin valores reales.
 
 | Variable | Servicio | Para qué |
 |---|---|---|
-| `DATABASE_URL` | backend | Conexión a PostgreSQL. Con TLS en Neon. |
+| `DATABASE_URL` | backend | Conexión a PostgreSQL. En producción, el pooler de Supabase en modo transacción, con TLS. |
 | `PORT` | backend | Puerto de escucha. Render lo inyecta solo. |
 | `CORS_ORIGIN` | backend | Dominios autorizados, separados por coma. |
 | `CORS_PREFIJO_PREVIEW` | backend | Prefijo para autorizar los previews de Vercel. |
@@ -174,10 +202,13 @@ red, es CORS: revisar el paso 3.4.
 | Síntoma | Causa | Qué hacer |
 |---|---|---|
 | La primera visita tarda ~50 s | Render duerme el servicio tras ~15 min sin tráfico | La SPA avisa que la API está despertando. Antes de una demostración, abrir `/health` para despertarla. |
-| `base: sin-conexion` tras días sin uso | Neon autosuspende el proyecto | Se despierta con la primera consulta; reintentar. |
+| `base: sin-conexion` tras una semana sin uso | Supabase **pausa** los proyectos gratuitos tras 7 días de inactividad | No se despierta solo: hay que reactivarlo a mano desde el panel. Antes de la defensa, entrar al proyecto con anticipación. |
+| `base: sin-conexion` con credenciales correctas | Se usó la conexión directa, que es IPv6, y Render no tiene salida IPv6 | Usar la cadena del pooler compartido (paso 3.1). |
 | El build de Vercel no encuentra `package.json` | Falta *Root Directory* `frontend` | Paso 3.3.3. |
 | Error de red solo desde el dominio de Vercel | `CORS_ORIGIN` sin el dominio de producción | Paso 3.4. |
-| El esquema quedó a medias en Neon | Se corrió `psql` sin `ON_ERROR_STOP=1` | Borrar y recrear la base en Neon, y reaplicar. |
+| `self-signed certificate in certificate chain` | Falta la CA de Supabase, o el `sslmode` de la URL pisó la configuración de TLS | La CA está en `backend/certs/supabase-ca.crt` y el código quita el `sslmode` de la cadena. Si cambiaste eso, revisá `backend/src/db.ts`. |
+| El esquema quedó a medias | Se corrió `psql` sin `ON_ERROR_STOP=1` | Borrar y recrear el proyecto en Supabase, y reaplicar. |
+| El DDL falla raro al migrar | Se usó el pooler en modo transacción para las migraciones | Usar la cadena de modo sesión, puerto `5432`. |
 
 ---
 
@@ -187,6 +218,7 @@ La arquitectura previó dos caminos, y el segundo existe justamente como
 respaldo:
 
 1. **El despliegue**, accesible desde cualquier navegador. Conviene despertar la
-   API unos minutos antes.
+   API unos minutos antes y, si pasó más de una semana, revisar que el proyecto de
+   Supabase no esté pausado.
 2. **`docker compose up`**, que no depende de la conectividad ni de que los
    servicios gratuitos estén despiertos.

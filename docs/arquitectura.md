@@ -82,7 +82,7 @@ Tres middlewares son transversales a todos los módulos:
 |---|---|---|
 | Frontend (SPA) | React + TypeScript (Vite) | Vercel |
 | Backend / API REST | Node.js + Express + TypeScript | Render |
-| Base de datos | PostgreSQL | Neon |
+| Base de datos | PostgreSQL | Supabase |
 | Microservicio PDF → texto | Python + FastAPI + `pdfplumber` | Render |
 | Autenticación | JWT + Passport.js | (dentro del backend) |
 | IA (opcional) | Claude API (Anthropic) | SaaS externo |
@@ -131,10 +131,24 @@ completo sin las funciones de IA. Ninguna parte del núcleo depende de ella.
 microservicio y base con un comando, que es lo que necesitamos para trabajar de a
 dos y para la demostración. Kubernetes sería sobreingeniería.
 
-**Vercel + Render + Neon.** Los tres tienen capa gratuita suficiente y cumplen el
-requisito de la cátedra de tener el sistema accesible online. Se descartó
-*serverless* puro para el backend porque hay tareas programadas —la revisión
-diaria de vencimientos— que necesitan un proceso con estado.
+**Vercel + Render + Supabase.** Los tres tienen capa gratuita suficiente y
+cumplen el requisito de la cátedra de tener el sistema accesible online. Se
+descartó *serverless* puro para el backend porque hay tareas programadas —la
+revisión diaria de vencimientos— que necesitan un proceso con estado.
+
+> **Cambio respecto de la propuesta inicial.** La 1.ª entrega proponía Neon para
+> la base, con Supabase como alternativa; en el Sprint S0 se tomó la alternativa.
+> El esquema no cambió: ya era portable entre ambos, porque `fn_sin_acentos()`
+> declara su `search_path` nombrando `public` y `extensions`, que es donde cada
+> plataforma instala las extensiones. De Supabase se usa **solo PostgreSQL**: la
+> autenticación sigue siendo JWT + Passport.js en el backend, para no duplicar la
+> identidad con la tabla `usuario` ni atar el proyecto a la plataforma.
+>
+> La contrapartida es operativa: Supabase **pausa** los proyectos gratuitos tras
+> siete días de inactividad y hay que reactivarlos a mano, mientras que Neon se
+> despertaba solo. Además, su conexión directa es IPv6 y Render no tiene salida
+> IPv6, así que la API se conecta por el *pooler* compartido. Ambas cosas están
+> documentadas en [`despliegue.md`](despliegue.md).
 
 ---
 
@@ -157,7 +171,7 @@ El sistema se despliega en tres servicios independientes:
 |---|---|---|
 | **Vercel** | Frontend | Conectado al repositorio, despliegue automático |
 | **Render** | Backend y microservicio PDF | Conectado al repositorio |
-| **Neon** | Base de datos | Migraciones aplicadas con `psql` |
+| **Supabase** | Base de datos | Migraciones aplicadas con `psql` por el pooler |
 
 **Variables de entorno.** Nada sensible vive en el repositorio. Cada servicio
 recibe su configuración por variables de entorno: cadena de conexión a la base,
