@@ -45,10 +45,37 @@ export const config = {
   limiteListados: entero('LIMITE_LISTADOS', 50),
 } as const;
 
+const DOMINIO_VERCEL = '.vercel.app';
+
 export function origenAutorizado(origen: string): boolean {
   if (config.origenesPermitidos.includes(origen)) return true;
-  const previewVercel = new RegExp(
-    `^https://${config.prefijoPreviewVercel}[a-z0-9-]*\.vercel\.app$`,
-  );
-  return previewVercel.test(origen);
+  return esPreviewDeVercel(origen);
+}
+
+/**
+ * Autoriza los previews del proyecto en Vercel.
+ *
+ * Se compara el host ya parseado en lugar de armar un regex con el prefijo
+ * interpolado: un prefijo con metacaracteres ensancharía la allowlist sin que
+ * se note, y un punto mal escapado convierte `.vercel.app` en un comodín que
+ * matchea cualquier carácter.
+ */
+function esPreviewDeVercel(origen: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(origen);
+  } catch {
+    return false;
+  }
+
+  // Solo https y sin puerto: un origen es esquema + host + puerto.
+  if (url.protocol !== 'https:' || url.port !== '') return false;
+  if (!url.hostname.endsWith(DOMINIO_VERCEL)) return false;
+
+  const subdominio = url.hostname.slice(0, -DOMINIO_VERCEL.length);
+  // Un solo nivel: descarta cosas como sistemalegal.ajeno.vercel.app.
+  if (subdominio.length === 0 || subdominio.includes('.')) return false;
+
+  const prefijo = config.prefijoPreviewVercel;
+  return subdominio === prefijo || subdominio.startsWith(`${prefijo}-`);
 }
