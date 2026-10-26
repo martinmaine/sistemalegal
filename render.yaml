@@ -10,7 +10,10 @@ services:
     plan: free
     region: oregon
     rootDir: backend
-    buildCommand: npm ci && npm run build
+    # --include=dev no es opcional: NODE_ENV=production hace que npm ci omita
+    # las devDependencies, y entonces el build no usa el TypeScript del
+    # lockfile sino el tsc global de la imagen de Render, que es otra version.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:

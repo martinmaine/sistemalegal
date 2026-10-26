@@ -2,8 +2,11 @@
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023"],
-    "module": "commonjs",
-    "moduleResolution": "node",
+    // node16 en vez de commonjs/node: "node" es un alias de node10, que
+    // TypeScript 6 ya no acepta. La salida sigue siendo CommonJS porque
+    // package.json no declara "type": "module".
+    "module": "node16",
+    "moduleResolution": "node16",
     "rootDir": "src",
     "outDir": "dist",
     "strict": true,
