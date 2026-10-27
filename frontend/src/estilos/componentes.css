@@ -117,12 +117,20 @@
   justify-content: space-between;
   gap: var(--esp-4);
   padding: var(--esp-5) var(--esp-5) var(--esp-4);
+  /* El filete es lo que separa "encabezado" de "contenido" aunque se mire de
+     reojo: con solo el tamaño, el título se leía como la primera fila de lo
+     que le sigue. */
+  border-bottom: 1px solid var(--borde);
 }
 
+/* Más grande y más pesado que el contenido (15 px / 400) a propósito: el
+   título de una sección tiene que distinguirse a primera vista, no al leerlo. */
 .tarjeta__titulo {
-  font-size: var(--texto-md);
-  font-weight: var(--peso-semi);
-  letter-spacing: -0.005em;
+  font-size: var(--texto-lg);
+  font-weight: var(--peso-fuerte);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--neutro-900);
 }
 
 .tarjeta__descripcion {
@@ -133,6 +141,11 @@
 
 .tarjeta__cuerpo {
   padding: 0 var(--esp-5) var(--esp-5);
+}
+
+/* Con el filete de la cabecera, el contenido con relleno necesita aire arriba. */
+.tarjeta__cabecera + .tarjeta__cuerpo:not(.tarjeta__cuerpo--sin-relleno) {
+  padding-top: var(--esp-5);
 }
 
 /* Cuando el cuerpo es una tabla o una lista, el padding lo pone cada fila. */

@@ -280,14 +280,19 @@
   background: var(--neutro-100);
 }
 
+/* Columna, no línea: nombre y rol son <span>, que por defecto van en línea, y
+   sin esto se leían pegados ("Laura GestiónAdministrador"). */
 .menu-usuario__datos {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   text-align: left;
   line-height: 1.2;
 }
 
 .menu-usuario__nombre {
   font-size: var(--texto-sm);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-semi);
 }
 
 .menu-usuario__rol {
