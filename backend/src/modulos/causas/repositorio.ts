@@ -593,11 +593,35 @@ export async function quitarProfesional(causaId: string, vinculoId: string): Pro
   return (rowCount ?? 0) > 0;
 }
 
-/** Cuántos profesionales activos quedan. Evita dejar el expediente sin nadie a cargo. */
+/**
+ * Un integrante del estudio que puede recibir una asignación.
+ *
+ * La clave foránea garantiza que el usuario exista, pero no que esté activo, y
+ * tampoco da un mensaje usable: sin esta comprobación, un id inexistente
+ * llegaría al INSERT y volvería como violación de restricción (un 500) en
+ * lugar de un error en el campo.
+ */
+export async function esProfesionalAsignable(usuarioId: string): Promise<boolean> {
+  const { rows } = await obtenerPool().query(
+    'SELECT 1 FROM usuario WHERE id = $1 AND activo LIMIT 1',
+    [usuarioId],
+  );
+  return rows.length > 0;
+}
+
+/**
+ * Cuántos integrantes activos quedan a cargo del expediente.
+ *
+ * Cuenta solo usuarios `activo`: una asignación a alguien que ya no trabaja en
+ * el estudio no deja al expediente atendido, así que no debería alcanzar para
+ * permitir que se desasigne a quien sí lo está.
+ */
 export async function contarProfesionales(causaId: string): Promise<number> {
   const { rows } = await obtenerPool().query<{ total: string }>(
-    `SELECT count(*) AS total FROM profesional_causa
-      WHERE causa_id = $1 AND fecha_baja IS NULL`,
+    `SELECT count(*) AS total
+       FROM profesional_causa pc
+       JOIN usuario u ON u.id = pc.usuario_id AND u.activo
+      WHERE pc.causa_id = $1 AND pc.fecha_baja IS NULL`,
     [causaId],
   );
   return Number.parseInt(rows[0]?.total ?? '0', 10);

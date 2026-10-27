@@ -7,6 +7,7 @@ import { config } from '../src/config';
 import { esquemaEditarCausa } from '../src/modulos/causas/esquemas';
 import {
   conSesion,
+  crearUsuarioInactivo,
   iniciarSesion,
   limpiarDatosDePrueba,
   PREFIJO_PRUEBA,
@@ -345,6 +346,33 @@ describe.skipIf(!hayBase)('equipo asignado al expediente', () => {
     });
     expect(repetido.status).toBe(409);
     expect(repetido.body.detalles?.usuario_id).toBeDefined();
+  });
+
+  it('rechaza asignar a alguien que no existe, en lugar de fallar con un 500', async () => {
+    const sesion = await iniciarSesion(app);
+    const { id } = await crearExpediente(sesion);
+
+    const asignado = await conSesion(request(app).post(`/api/causas/${id}/profesionales`), sesion).send({
+      usuario_id: randomUUID(),
+      rol_en_causa: 'COLABORADOR',
+    });
+
+    // Sin la comprobación previa esto sería una violación de clave foránea.
+    expect(asignado.status).toBe(400);
+    expect(asignado.body.detalles?.usuario_id).toBeDefined();
+  });
+
+  it('rechaza asignar a un integrante dado de baja', async () => {
+    const sesion = await iniciarSesion(app);
+    const { id } = await crearExpediente(sesion);
+    const inactivoId = await crearUsuarioInactivo();
+
+    const asignado = await conSesion(request(app).post(`/api/causas/${id}/profesionales`), sesion).send({
+      usuario_id: inactivoId,
+      rol_en_causa: 'COLABORADOR',
+    });
+
+    expect(asignado.status).toBe(400);
   });
 
   it('no deja el expediente sin nadie a cargo', async () => {

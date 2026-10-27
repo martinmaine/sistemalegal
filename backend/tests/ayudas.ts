@@ -72,4 +72,34 @@ export async function limpiarDatosDePrueba(): Promise<void> {
   await pool
     .query('DELETE FROM persona WHERE apellido LIKE $1 OR razon_social LIKE $1', [patron])
     .catch(() => undefined);
+  // Usuarios de prueba al final: `profesional_causa` los referencia con
+  // ON DELETE RESTRICT y esas filas se fueron con las causas de arriba.
+  await pool.query('DELETE FROM usuario WHERE apellido LIKE $1', [patron]).catch(() => undefined);
+}
+
+/**
+ * Crea un integrante del estudio dado de baja y devuelve su id.
+ *
+ * Hace falta para probar que no se puede asignar a alguien inactivo, y el seed
+ * solo trae usuarios activos. El hash de contraseña es inservible a propósito:
+ * este usuario no tiene que poder iniciar sesión.
+ */
+export async function crearUsuarioInactivo(): Promise<string> {
+  const { rows } = await obtenerPool().query<{ id: string }>(
+    `INSERT INTO usuario (rol_id, email, password_hash, nombre, apellido, activo)
+     SELECT r.id,
+            'baja-' || substr(md5(random()::text), 1, 8) || '@estudiodemo.test',
+            'sin-acceso',
+            'Ex',
+            $1,
+            FALSE
+       FROM rol r
+      WHERE r.codigo = 'EMPLEADO'
+     RETURNING id`,
+    [`${PREFIJO_PRUEBA}INACTIVO`],
+  );
+
+  const id = rows[0]?.id;
+  if (!id) throw new Error('No se pudo crear el usuario inactivo de prueba');
+  return id;
 }

@@ -11,8 +11,11 @@ import type {
   MovimientoCausa,
   Pagina,
   Panel,
+  ParteCausa,
+  PersonaDetalle,
   PersonaListada,
   PlazoCausa,
+  ProfesionalCausa,
   TareaCausa,
 } from '../tipos/api';
 
@@ -147,6 +150,16 @@ export interface DatosNuevaCausa {
   observaciones?: string;
 }
 
+/**
+ * Lo que acepta la edición: todo lo del alta más lo que solo tiene sentido
+ * sobre una causa ya abierta —cerrarla, registrar el monto reclamado—.
+ */
+export interface DatosEditarCausa extends DatosNuevaCausa {
+  fecha_cierre?: string;
+  monto_reclamado?: number;
+  moneda?: string;
+}
+
 export function useCrearCausa() {
   const cliente = useQueryClient();
 
@@ -198,5 +211,167 @@ export function useSalud() {
     // El diagnóstico sirve para ver el estado de ahora, no uno cacheado.
     staleTime: 0,
     gcTime: 0,
+  });
+}
+
+/* --- Escritura de causas ---------------------------------------------------
+   Cada mutación invalida exactamente lo que dejó viejo. Invalidar de más
+   obliga a recargas innecesarias; invalidar de menos deja la pantalla
+   mostrando datos que ya no son. */
+
+export function useEditarCausa(id: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (datos: DatosEditarCausa) =>
+      api.reemplazar<{ causa: CausaDetalle }>(`/api/causas/${id}`, datos).then((r) => r.causa),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: claves.causa(id) });
+      // El listado muestra carátula, estado y responsable: cualquiera de los
+      // tres pudo cambiar. El panel cuenta causas activas, que depende del estado.
+      void cliente.invalidateQueries({ queryKey: claves.causas });
+      void cliente.invalidateQueries({ queryKey: claves.panel });
+    },
+  });
+}
+
+export function useEliminarCausa() {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.eliminar<{ causa: CausaDetalle }>(`/api/causas/${id}`),
+    onSuccess: (_resultado, id) => {
+      cliente.removeQueries({ queryKey: claves.causa(id) });
+      void cliente.invalidateQueries({ queryKey: claves.causas });
+      void cliente.invalidateQueries({ queryKey: claves.panel });
+    },
+  });
+}
+
+export interface DatosParte {
+  persona_id: string;
+  caracter: string;
+  es_cliente: boolean;
+  observaciones?: string;
+}
+
+export function useAgregarParte(causaId: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (datos: DatosParte) =>
+      api.enviar<{ parte: ParteCausa }>(`/api/causas/${causaId}/partes`, datos).then((r) => r.parte),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: claves.causa(causaId) });
+      // La ficha de la persona lista las causas en que interviene, y el listado
+      // de la agenda muestra en cuántas: las dos quedaron viejas.
+      void cliente.invalidateQueries({ queryKey: claves.personas });
+    },
+  });
+}
+
+export function useQuitarParte(causaId: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (parteId: string) =>
+      api.eliminar<{ parte: ParteCausa }>(`/api/causas/${causaId}/partes/${parteId}`),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: claves.causa(causaId) });
+      void cliente.invalidateQueries({ queryKey: claves.personas });
+    },
+  });
+}
+
+export interface DatosProfesional {
+  usuario_id: string;
+  rol_en_causa: string;
+}
+
+export function useAsignarProfesional(causaId: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (datos: DatosProfesional) =>
+      api
+        .enviar<{ profesional: ProfesionalCausa }>(`/api/causas/${causaId}/profesionales`, datos)
+        .then((r) => r.profesional),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: claves.causa(causaId) });
+      // El responsable que muestra el listado sale de estas asignaciones.
+      void cliente.invalidateQueries({ queryKey: claves.causas });
+    },
+  });
+}
+
+export function useDesasignarProfesional(causaId: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (vinculoId: string) =>
+      api.eliminar<{ profesional: ProfesionalCausa }>(
+        `/api/causas/${causaId}/profesionales/${vinculoId}`,
+      ),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: claves.causa(causaId) });
+      void cliente.invalidateQueries({ queryKey: claves.causas });
+    },
+  });
+}
+
+/* --- Escritura de personas ------------------------------------------------- */
+
+export interface DatosPersona {
+  tipo_persona: 'FISICA' | 'JURIDICA';
+  nombre?: string;
+  apellido?: string;
+  razon_social?: string;
+  tipo_documento?: string;
+  numero_documento?: string;
+  cuit_cuil?: string;
+  email?: string;
+  telefono?: string;
+  domicilio?: string;
+  localidad?: string;
+  provincia?: string;
+  observaciones?: string;
+}
+
+export function useCrearPersona() {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (datos: DatosPersona) =>
+      api.enviar<{ persona: PersonaDetalle }>('/api/personas', datos).then((r) => r.persona),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: claves.personas });
+    },
+  });
+}
+
+export function useEditarPersona(id: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (datos: DatosPersona) =>
+      api.reemplazar<{ persona: PersonaDetalle }>(`/api/personas/${id}`, datos).then((r) => r.persona),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: claves.personas });
+      // Los expedientes muestran el nombre de sus partes: si cambió, hay que
+      // volver a pedirlos para no mostrar el anterior.
+      void cliente.invalidateQueries({ queryKey: claves.causas });
+    },
+  });
+}
+
+export function useEliminarPersona() {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.eliminar<{ persona: PersonaDetalle }>(`/api/personas/${id}`),
+    onSuccess: (_resultado, id) => {
+      cliente.removeQueries({ queryKey: claves.persona(id) });
+      void cliente.invalidateQueries({ queryKey: claves.personas });
+    },
   });
 }

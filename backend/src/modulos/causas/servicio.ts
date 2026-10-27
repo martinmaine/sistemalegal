@@ -1,5 +1,5 @@
 import { armarPagina, type Pagina } from '../../comun/paginacion';
-import { ErrorConflicto, ErrorNoEncontrado } from '../../comun/errores';
+import { ErrorConflicto, ErrorNoEncontrado, ErrorSolicitud } from '../../comun/errores';
 import * as repositorio from './repositorio';
 import type {
   DatosAgregarParte,
@@ -162,6 +162,15 @@ export async function agregarProfesional(
   datos: DatosAgregarProfesional,
 ): Promise<ProfesionalCausa> {
   await exigirCausa(causaId);
+
+  // Se valida contra la base y no solo contra el desplegable: el desplegable
+  // ofrece únicamente integrantes activos, pero la API es alcanzable sin pasar
+  // por la pantalla.
+  if (!(await repositorio.esProfesionalAsignable(datos.usuario_id))) {
+    throw new ErrorSolicitud('Ese integrante del estudio no existe o está dado de baja.', {
+      usuario_id: ['No es un integrante activo del estudio.'],
+    });
+  }
 
   if (await repositorio.estaAsignado(causaId, datos.usuario_id)) {
     throw new ErrorConflicto('Esa persona ya está asignada al expediente.', {

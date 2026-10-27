@@ -185,7 +185,8 @@ export const api = {
   urlBase: BASE,
   obtener: <T>(ruta: string) => pedir<T>(ruta),
   enviar: <T>(ruta: string, cuerpo: unknown) => pedir<T>(ruta, { metodo: 'POST', cuerpo }),
-  modificar: <T>(ruta: string, cuerpo: unknown) => pedir<T>(ruta, { metodo: 'PATCH', cuerpo }),
+  /** PUT: reemplaza el recurso completo, que es como actualiza la API. */
+  reemplazar: <T>(ruta: string, cuerpo: unknown) => pedir<T>(ruta, { metodo: 'PUT', cuerpo }),
   eliminar: <T>(ruta: string) => pedir<T>(ruta, { metodo: 'DELETE' }),
 
   /** Las rutas de sesión no pasan por la renovación automática. */
