@@ -1,8 +1,17 @@
 import { Router } from 'express';
 import { requierePermiso } from '../../middlewares/autenticacion';
 import { validarConsulta, validarCuerpo } from '../../middlewares/validacion';
-import { esquemaCrearCausa, esquemaFiltrosCausa } from './esquemas';
 import {
+  esquemaAgregarParte,
+  esquemaAgregarProfesional,
+  esquemaCrearCausa,
+  esquemaEditarCausa,
+  esquemaFiltrosCausa,
+} from './esquemas';
+import {
+  deleteCausa,
+  deleteParte,
+  deleteProfesional,
   getCausa,
   getCausas,
   getDocumentos,
@@ -10,6 +19,9 @@ import {
   getPlazos,
   getTareas,
   postCausa,
+  postParte,
+  postProfesional,
+  putCausa,
 } from './controlador';
 
 /**
@@ -25,7 +37,28 @@ rutasCausas.get('/', requierePermiso('causa.ver'), validarConsulta(esquemaFiltro
 rutasCausas.post('/', requierePermiso('causa.crear'), validarCuerpo(esquemaCrearCausa), postCausa);
 
 rutasCausas.get('/:id', requierePermiso('causa.ver'), getCausa);
+rutasCausas.put('/:id', requierePermiso('causa.editar'), validarCuerpo(esquemaEditarCausa), putCausa);
+rutasCausas.delete('/:id', requierePermiso('causa.eliminar'), deleteCausa);
+
 rutasCausas.get('/:id/movimientos', requierePermiso('causa.ver'), getMovimientos);
 rutasCausas.get('/:id/plazos', requierePermiso('plazo.ver'), getPlazos);
 rutasCausas.get('/:id/documentos', requierePermiso('documento.ver'), getDocumentos);
 rutasCausas.get('/:id/tareas', requierePermiso('tarea.ver'), getTareas);
+
+// Vincular una persona o un integrante del estudio es editar el expediente, no
+// crear ni borrar una persona: por eso exige causa.editar y no persona.crear.
+rutasCausas.post(
+  '/:id/partes',
+  requierePermiso('causa.editar'),
+  validarCuerpo(esquemaAgregarParte),
+  postParte,
+);
+rutasCausas.delete('/:id/partes/:vinculoId', requierePermiso('causa.editar'), deleteParte);
+
+rutasCausas.post(
+  '/:id/profesionales',
+  requierePermiso('causa.editar'),
+  validarCuerpo(esquemaAgregarProfesional),
+  postProfesional,
+);
+rutasCausas.delete('/:id/profesionales/:vinculoId', requierePermiso('causa.editar'), deleteProfesional);

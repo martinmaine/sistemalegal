@@ -1,6 +1,6 @@
 import { obtenerPool } from '../../db';
 import { desplazamiento } from '../../comun/paginacion';
-import type { FiltrosPersona, OrdenPersona } from './esquemas';
+import type { DatosPersona, FiltrosPersona, OrdenPersona } from './esquemas';
 
 /**
  * Agenda de personas del estudio: clientes, contrarias, peritos y testigos.
@@ -175,4 +175,110 @@ export async function causasDe(personaId: string): Promise<CausaDePersona[]> {
     [personaId],
   );
   return rows;
+}
+
+/**
+ * Columnas que escribe el formulario, en el orden en que se pasan los
+ * parámetros. Compartirlas entre el alta y la edición evita que una de las dos
+ * se olvide un campo cuando se agregue uno nuevo.
+ */
+const CAMPOS_PERSONA = [
+  'tipo_persona',
+  'nombre',
+  'apellido',
+  'razon_social',
+  'tipo_documento',
+  'numero_documento',
+  'cuit_cuil',
+  'email',
+  'telefono',
+  'domicilio',
+  'localidad',
+  'provincia',
+  'observaciones',
+] as const;
+
+function valoresDe(datos: DatosPersona): unknown[] {
+  return CAMPOS_PERSONA.map((campo) => datos[campo] ?? null);
+}
+
+export async function crear(datos: DatosPersona): Promise<string> {
+  const marcadores = CAMPOS_PERSONA.map((_, i) => `$${i + 1}`).join(', ');
+  const { rows } = await obtenerPool().query<{ id: string }>(
+    `INSERT INTO persona (${CAMPOS_PERSONA.join(', ')})
+     VALUES (${marcadores})
+     RETURNING id`,
+    valoresDe(datos),
+  );
+  const id = rows[0]?.id;
+  if (!id) throw new Error('El alta de la persona no devolvió un identificador');
+  return id;
+}
+
+export async function actualizar(id: string, datos: DatosPersona): Promise<boolean> {
+  // El id va primero, así que los campos arrancan en $2.
+  const asignaciones = CAMPOS_PERSONA.map((campo, i) => `${campo} = $${i + 2}`).join(',\n            ');
+  const { rowCount } = await obtenerPool().query(
+    `UPDATE persona
+        SET ${asignaciones}
+      WHERE id = $1 AND eliminado_en IS NULL`,
+    [id, ...valoresDe(datos)],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/**
+ * Baja de la persona: marca `eliminado_en`.
+ *
+ * No se borra la fila porque `parte_causa` la referencia con ON DELETE RESTRICT
+ * y porque el historial de una causa cerrada tiene que seguir nombrando a sus
+ * partes. El servicio se encarga de no permitir la baja de alguien que todavía
+ * interviene en un expediente vigente.
+ */
+export async function eliminar(id: string): Promise<boolean> {
+  const { rowCount } = await obtenerPool().query(
+    'UPDATE persona SET eliminado_en = now() WHERE id = $1 AND eliminado_en IS NULL',
+    [id],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/**
+ * Busca otra persona viva con el mismo documento.
+ *
+ * Replica uq_persona_documento para poder responder un mensaje en el campo
+ * correcto. `exceptoId` permite guardar una ficha sin cambiarle el documento.
+ */
+export async function existeDocumento(
+  tipo: string,
+  numero: string,
+  exceptoId?: string,
+): Promise<boolean> {
+  const valores: unknown[] = [tipo, numero];
+  let filtro = '';
+  if (exceptoId) {
+    valores.push(exceptoId);
+    filtro = ` AND id <> $${valores.length}`;
+  }
+
+  const { rows } = await obtenerPool().query(
+    `SELECT 1 FROM persona
+      WHERE tipo_documento = $1 AND numero_documento = $2 AND eliminado_en IS NULL${filtro}
+      LIMIT 1`,
+    valores,
+  );
+  return rows.length > 0;
+}
+
+/** Causas vigentes en que la persona interviene. Decide si se la puede dar de baja. */
+export async function contarCausasVigentes(personaId: string): Promise<number> {
+  const { rows } = await obtenerPool().query<{ total: string }>(
+    `SELECT count(*) AS total
+       FROM parte_causa pc
+       JOIN causa c         ON c.id  = pc.causa_id AND c.eliminado_en IS NULL
+       JOIN estado_causa ec ON ec.id = c.estado_causa_id
+      WHERE pc.persona_id = $1 AND ec.es_final = FALSE`,
+    [personaId],
+  );
+  return Number.parseInt(rows[0]?.total ?? '0', 10);
 }

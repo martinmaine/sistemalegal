@@ -1,7 +1,13 @@
 import { armarPagina, type Pagina } from '../../comun/paginacion';
 import { ErrorConflicto, ErrorNoEncontrado } from '../../comun/errores';
 import * as repositorio from './repositorio';
-import type { DatosCrearCausa, FiltrosCausa } from './esquemas';
+import type {
+  DatosAgregarParte,
+  DatosAgregarProfesional,
+  DatosCrearCausa,
+  DatosEditarCausa,
+  FiltrosCausa,
+} from './esquemas';
 import type {
   CausaDetalle,
   CausaListada,
@@ -87,4 +93,103 @@ export async function crearCausa(datos: DatosCrearCausa, usuarioId: string): Pro
   const creada = await repositorio.buscarPorId(id);
   if (!creada) throw new ErrorNoEncontrado('La causa se creó pero no se pudo leer.');
   return creada;
+}
+
+/** Devuelve el antes y el después: la auditoría guarda ambos para poder comparar. */
+export interface ResultadoEdicion {
+  antes: CausaDetalle;
+  despues: CausaDetalle;
+}
+
+export async function editarCausa(id: string, datos: DatosEditarCausa): Promise<ResultadoEdicion> {
+  const antes = await repositorio.buscarPorId(id);
+  if (!antes) throw new ErrorNoEncontrado('No encontramos ese expediente.');
+
+  // Se excluye la propia causa: guardar sin cambiar el número no es un duplicado.
+  if (datos.numero_expediente && (await repositorio.existeExpedienteEnOtra(datos.numero_expediente, id))) {
+    throw new ErrorConflicto('Ya existe otro expediente con ese número.', {
+      numero_expediente: ['Ya existe otro expediente con ese número.'],
+    });
+  }
+
+  const actualizo = await repositorio.actualizar(id, datos);
+  if (!actualizo) throw new ErrorNoEncontrado('No encontramos ese expediente.');
+
+  const despues = await repositorio.buscarPorId(id);
+  if (!despues) throw new ErrorNoEncontrado('El expediente se guardó pero no se pudo leer.');
+  return { antes, despues };
+}
+
+export async function eliminarCausa(id: string): Promise<CausaDetalle> {
+  const antes = await repositorio.buscarPorId(id);
+  if (!antes) throw new ErrorNoEncontrado('No encontramos ese expediente.');
+
+  const elimino = await repositorio.eliminar(id);
+  if (!elimino) throw new ErrorNoEncontrado('No encontramos ese expediente.');
+  return antes;
+}
+
+export async function agregarParte(causaId: string, datos: DatosAgregarParte): Promise<ParteCausa> {
+  await exigirCausa(causaId);
+
+  // uq_parte_causa cubre (causa, persona, carácter): la misma persona puede ser
+  // actor en una causa y testigo en otra, e incluso tener dos caracteres en la
+  // misma, pero no el mismo dos veces.
+  if (await repositorio.existeParte(causaId, datos.persona_id, datos.caracter)) {
+    throw new ErrorConflicto('Esa persona ya figura en el expediente con ese carácter.', {
+      persona_id: ['Esa persona ya figura con ese carácter.'],
+    });
+  }
+
+  const id = await repositorio.agregarParte(causaId, datos);
+  const parte = await repositorio.buscarParte(causaId, id);
+  if (!parte) throw new ErrorNoEncontrado('La parte se agregó pero no se pudo leer.');
+  return parte;
+}
+
+export async function quitarParte(causaId: string, parteId: string): Promise<ParteCausa> {
+  await exigirCausa(causaId);
+
+  const parte = await repositorio.buscarParte(causaId, parteId);
+  if (!parte) throw new ErrorNoEncontrado('Esa parte no figura en el expediente.');
+
+  await repositorio.quitarParte(causaId, parteId);
+  return parte;
+}
+
+export async function agregarProfesional(
+  causaId: string,
+  datos: DatosAgregarProfesional,
+): Promise<ProfesionalCausa> {
+  await exigirCausa(causaId);
+
+  if (await repositorio.estaAsignado(causaId, datos.usuario_id)) {
+    throw new ErrorConflicto('Esa persona ya está asignada al expediente.', {
+      usuario_id: ['Ya está asignada a este expediente.'],
+    });
+  }
+
+  const id = await repositorio.agregarProfesional(causaId, datos);
+  const profesional = await repositorio.buscarProfesional(causaId, id);
+  if (!profesional) throw new ErrorNoEncontrado('La asignación se guardó pero no se pudo leer.');
+  return profesional;
+}
+
+export async function quitarProfesional(causaId: string, vinculoId: string): Promise<ProfesionalCausa> {
+  await exigirCausa(causaId);
+
+  const profesional = await repositorio.buscarProfesional(causaId, vinculoId);
+  if (!profesional) throw new ErrorNoEncontrado('Esa asignación no existe en el expediente.');
+
+  // Un expediente sin nadie a cargo desaparece de "mis causas", deja de tener a
+  // quién notificarle un vencimiento y no se le pueden delegar tareas. Antes de
+  // quedar vacío conviene asignar a otra persona.
+  if ((await repositorio.contarProfesionales(causaId)) <= 1) {
+    throw new ErrorConflicto(
+      'El expediente quedaría sin nadie a cargo. Asigná a otra persona antes de quitar a esta.',
+    );
+  }
+
+  await repositorio.quitarProfesional(causaId, vinculoId);
+  return profesional;
 }

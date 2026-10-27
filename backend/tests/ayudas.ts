@@ -1,5 +1,6 @@
 import request from 'supertest';
 import type { Express } from 'express';
+import { obtenerPool } from '../src/db';
 
 /**
  * Utilidades compartidas por las pruebas de integración.
@@ -43,4 +44,32 @@ export async function iniciarSesion(
 /** Azúcar para no repetir la cabecera Authorization en cada petición. */
 export function conSesion(peticion: request.Test, sesion: SesionDePrueba): request.Test {
   return peticion.set('Authorization', `Bearer ${sesion.accessToken}`);
+}
+
+/**
+ * Prefijo de todo lo que crean las pruebas.
+ *
+ * En CI la base nace y muere con la corrida, pero en local es la misma que usa
+ * el entorno de desarrollo: sin este marcador y la limpieza de abajo, cada
+ * `npm test` dejaría expedientes y personas de prueba mezclados con los datos
+ * de demostración que se ven en la aplicación.
+ */
+export const PREFIJO_PRUEBA = 'PRUEBA ';
+
+/**
+ * Borra lo que crearon las pruebas, en orden de dependencias.
+ *
+ * Las causas van primero: sus partes y profesionales se van con ellas por
+ * ON DELETE CASCADE. Las personas van después, porque `parte_causa` las
+ * referencia con ON DELETE RESTRICT y mientras exista el vínculo no se pueden
+ * borrar.
+ */
+export async function limpiarDatosDePrueba(): Promise<void> {
+  const patron = `${PREFIJO_PRUEBA}%`;
+  const pool = obtenerPool();
+
+  await pool.query('DELETE FROM causa WHERE caratula LIKE $1', [patron]).catch(() => undefined);
+  await pool
+    .query('DELETE FROM persona WHERE apellido LIKE $1 OR razon_social LIKE $1', [patron])
+    .catch(() => undefined);
 }

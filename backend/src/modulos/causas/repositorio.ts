@@ -1,6 +1,13 @@
 import { enTransaccion, obtenerPool } from '../../db';
 import { desplazamiento } from '../../comun/paginacion';
-import type { FiltrosCausa, OrdenCausa, DatosCrearCausa } from './esquemas';
+import type {
+  DatosAgregarParte,
+  DatosAgregarProfesional,
+  DatosCrearCausa,
+  DatosEditarCausa,
+  FiltrosCausa,
+  OrdenCausa,
+} from './esquemas';
 import type {
   CausaDetalle,
   CausaListada,
@@ -396,4 +403,202 @@ export async function crear(datos: DatosCrearCausa, creadoPor: string): Promise<
 
     return id;
   });
+}
+
+/**
+ * Edición de la causa.
+ *
+ * Devuelve false si no actualizó ninguna fila, que es lo que pasa cuando el id
+ * no existe o la causa ya estaba dada de baja. El servicio lo traduce a 404.
+ */
+export async function actualizar(id: string, datos: DatosEditarCausa): Promise<boolean> {
+  const { rowCount } = await obtenerPool().query(
+    `UPDATE causa
+        SET caratula          = $2,
+            numero_expediente = $3,
+            fuero_id          = $4,
+            estado_causa_id   = $5,
+            tribunal_id       = $6,
+            tipo_causa_id     = $7,
+            fecha_inicio      = $8,
+            fecha_cierre      = $9,
+            monto_reclamado   = $10,
+            moneda            = $11,
+            observaciones     = $12
+      WHERE id = $1 AND eliminado_en IS NULL`,
+    [
+      id,
+      datos.caratula,
+      datos.numero_expediente ?? null,
+      datos.fuero_id,
+      datos.estado_causa_id,
+      datos.tribunal_id ?? null,
+      datos.tipo_causa_id ?? null,
+      datos.fecha_inicio,
+      datos.fecha_cierre ?? null,
+      datos.monto_reclamado ?? null,
+      datos.moneda,
+      datos.observaciones ?? null,
+    ],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/**
+ * Baja de la causa: marca `eliminado_en` y no borra nada.
+ *
+ * Un expediente arrastra plazos, documentos, movimientos y costas; borrarlo de
+ * verdad destruiría el historial del estudio y rompería la auditoría, que
+ * referencia la entidad por id. Todas las consultas ya filtran
+ * `eliminado_en IS NULL`, así que deja de aparecer en la aplicación.
+ */
+export async function eliminar(id: string): Promise<boolean> {
+  const { rowCount } = await obtenerPool().query(
+    'UPDATE causa SET eliminado_en = now() WHERE id = $1 AND eliminado_en IS NULL',
+    [id],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/** Igual que existeExpediente, pero ignorando la causa que se está editando. */
+export async function existeExpedienteEnOtra(numero: string, exceptoId: string): Promise<boolean> {
+  const { rows } = await obtenerPool().query(
+    `SELECT 1 FROM causa
+      WHERE numero_expediente = $1 AND eliminado_en IS NULL AND id <> $2
+      LIMIT 1`,
+    [numero, exceptoId],
+  );
+  return rows.length > 0;
+}
+
+export async function agregarParte(causaId: string, datos: DatosAgregarParte): Promise<string> {
+  const { rows } = await obtenerPool().query<{ id: string }>(
+    `INSERT INTO parte_causa (causa_id, persona_id, caracter, es_cliente, observaciones)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id`,
+    [causaId, datos.persona_id, datos.caracter, datos.es_cliente, datos.observaciones ?? null],
+  );
+  const id = rows[0]?.id;
+  if (!id) throw new Error('El alta de la parte no devolvió un identificador');
+  return id;
+}
+
+export async function existeParte(causaId: string, personaId: string, caracter: string): Promise<boolean> {
+  const { rows } = await obtenerPool().query(
+    `SELECT 1 FROM parte_causa
+      WHERE causa_id = $1 AND persona_id = $2 AND caracter = $3
+      LIMIT 1`,
+    [causaId, personaId, caracter],
+  );
+  return rows.length > 0;
+}
+
+/** Datos de la parte antes de quitarla, para que la auditoría conserve qué había. */
+export async function buscarParte(causaId: string, parteId: string): Promise<ParteCausa | undefined> {
+  const { rows } = await obtenerPool().query<ParteCausa>(
+    `SELECT pc.id,
+            pc.persona_id,
+            COALESCE(p.razon_social, p.apellido || ', ' || p.nombre) AS nombre_completo,
+            p.tipo_persona,
+            CASE WHEN p.numero_documento IS NULL THEN NULL
+                 ELSE COALESCE(p.tipo_documento, 'DOC') || ' ' || p.numero_documento
+            END AS documento,
+            p.email,
+            p.telefono,
+            pc.caracter,
+            pc.es_cliente
+       FROM parte_causa pc
+       JOIN persona p ON p.id = pc.persona_id
+      WHERE pc.causa_id = $1 AND pc.id = $2`,
+    [causaId, parteId],
+  );
+  return rows[0];
+}
+
+/**
+ * Quita a una parte de la causa.
+ *
+ * Acá sí se borra la fila: `parte_causa` es el vínculo, no el dato. La persona
+ * sigue en la agenda y el historial de la causa (movimientos, documentos) no
+ * depende de este registro.
+ */
+export async function quitarParte(causaId: string, parteId: string): Promise<boolean> {
+  const { rowCount } = await obtenerPool().query(
+    'DELETE FROM parte_causa WHERE causa_id = $1 AND id = $2',
+    [causaId, parteId],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+export async function agregarProfesional(
+  causaId: string,
+  datos: DatosAgregarProfesional,
+): Promise<string> {
+  const { rows } = await obtenerPool().query<{ id: string }>(
+    `INSERT INTO profesional_causa (causa_id, usuario_id, rol_en_causa)
+     VALUES ($1, $2, $3)
+     RETURNING id`,
+    [causaId, datos.usuario_id, datos.rol_en_causa],
+  );
+  const id = rows[0]?.id;
+  if (!id) throw new Error('La asignación del profesional no devolvió un identificador');
+  return id;
+}
+
+/** Un profesional ya asignado y sin fecha de baja: lo que impide el índice único. */
+export async function estaAsignado(causaId: string, usuarioId: string): Promise<boolean> {
+  const { rows } = await obtenerPool().query(
+    `SELECT 1 FROM profesional_causa
+      WHERE causa_id = $1 AND usuario_id = $2 AND fecha_baja IS NULL
+      LIMIT 1`,
+    [causaId, usuarioId],
+  );
+  return rows.length > 0;
+}
+
+export async function buscarProfesional(
+  causaId: string,
+  vinculoId: string,
+): Promise<ProfesionalCausa | undefined> {
+  const { rows } = await obtenerPool().query<ProfesionalCausa>(
+    `SELECT pc.id,
+            pc.usuario_id,
+            ${NOMBRE_USUARIO} AS nombre_completo,
+            u.matricula,
+            pc.rol_en_causa,
+            to_char(pc.fecha_asignacion, 'YYYY-MM-DD') AS fecha_asignacion
+       FROM profesional_causa pc
+       JOIN usuario u ON u.id = pc.usuario_id
+      WHERE pc.causa_id = $1 AND pc.id = $2 AND pc.fecha_baja IS NULL`,
+    [causaId, vinculoId],
+  );
+  return rows[0];
+}
+
+/**
+ * Desasigna a un profesional poniéndole fecha de baja, sin borrar la fila.
+ *
+ * A diferencia de las partes, acá el registro **es** información: deja asentado
+ * quién trabajó el expediente y hasta cuándo, que es lo que permite explicar
+ * una actuación pasada. El índice único solo mira las filas sin fecha de baja,
+ * así que la persona puede volver a asignarse más adelante.
+ */
+export async function quitarProfesional(causaId: string, vinculoId: string): Promise<boolean> {
+  const { rowCount } = await obtenerPool().query(
+    `UPDATE profesional_causa
+        SET fecha_baja = CURRENT_DATE
+      WHERE causa_id = $1 AND id = $2 AND fecha_baja IS NULL`,
+    [causaId, vinculoId],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/** Cuántos profesionales activos quedan. Evita dejar el expediente sin nadie a cargo. */
+export async function contarProfesionales(causaId: string): Promise<number> {
+  const { rows } = await obtenerPool().query<{ total: string }>(
+    `SELECT count(*) AS total FROM profesional_causa
+      WHERE causa_id = $1 AND fecha_baja IS NULL`,
+    [causaId],
+  );
+  return Number.parseInt(rows[0]?.total ?? '0', 10);
 }

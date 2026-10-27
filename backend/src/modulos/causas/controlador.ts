@@ -3,7 +3,15 @@ import { consultaValidada } from '../../middlewares/validacion';
 import { ErrorSolicitud } from '../../comun/errores';
 import { registrar } from '../auditoria/servicio';
 import * as servicio from './servicio';
-import { esquemaIdRuta, type DatosCrearCausa, type FiltrosCausa } from './esquemas';
+import {
+  esquemaIdRuta,
+  esquemaIdVinculo,
+  type DatosAgregarParte,
+  type DatosAgregarProfesional,
+  type DatosCrearCausa,
+  type DatosEditarCausa,
+  type FiltrosCausa,
+} from './esquemas';
 
 /**
  * Capa de controlador: traduce HTTP a llamadas al servicio y nada más.
@@ -77,6 +85,120 @@ export async function postCausa(req: Request, res: Response, next: NextFunction)
     });
 
     res.status(201).json({ causa: creada });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** Valida los dos identificadores de una ruta anidada (/causas/:id/partes/:vinculoId). */
+function idsDeVinculo(req: Request): { causaId: string; vinculoId: string } {
+  const resultado = esquemaIdVinculo.safeParse(req.params);
+  if (!resultado.success) throw new ErrorSolicitud('El identificador no es válido.');
+  return { causaId: resultado.data.id, vinculoId: resultado.data.vinculoId };
+}
+
+export async function putCausa(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { antes, despues } = await servicio.editarCausa(idDeRuta(req), req.body as DatosEditarCausa);
+
+    await registrar(req, {
+      entidad: 'causa',
+      entidadId: despues.id,
+      accion: 'ACTUALIZAR',
+      datosAntes: antes,
+      datosDespues: despues,
+    });
+
+    res.json({ causa: despues });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteCausa(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const eliminada = await servicio.eliminarCausa(idDeRuta(req));
+
+    await registrar(req, {
+      entidad: 'causa',
+      entidadId: eliminada.id,
+      accion: 'ELIMINAR',
+      datosAntes: eliminada,
+    });
+
+    res.json({ causa: eliminada });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postParte(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const causaId = idDeRuta(req);
+    const parte = await servicio.agregarParte(causaId, req.body as DatosAgregarParte);
+
+    await registrar(req, {
+      entidad: 'parte_causa',
+      entidadId: parte.id,
+      accion: 'CREAR',
+      datosDespues: { causa_id: causaId, ...parte },
+    });
+
+    res.status(201).json({ parte });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteParte(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { causaId, vinculoId } = idsDeVinculo(req);
+    const parte = await servicio.quitarParte(causaId, vinculoId);
+
+    await registrar(req, {
+      entidad: 'parte_causa',
+      entidadId: parte.id,
+      accion: 'ELIMINAR',
+      datosAntes: { causa_id: causaId, ...parte },
+    });
+
+    res.json({ parte });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postProfesional(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const causaId = idDeRuta(req);
+    const profesional = await servicio.agregarProfesional(causaId, req.body as DatosAgregarProfesional);
+
+    await registrar(req, {
+      entidad: 'profesional_causa',
+      entidadId: profesional.id,
+      accion: 'CREAR',
+      datosDespues: { causa_id: causaId, ...profesional },
+    });
+
+    res.status(201).json({ profesional });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteProfesional(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { causaId, vinculoId } = idsDeVinculo(req);
+    const profesional = await servicio.quitarProfesional(causaId, vinculoId);
+
+    await registrar(req, {
+      entidad: 'profesional_causa',
+      entidadId: profesional.id,
+      accion: 'ELIMINAR',
+      datosAntes: { causa_id: causaId, ...profesional },
+    });
+
+    res.json({ profesional });
   } catch (error) {
     next(error);
   }

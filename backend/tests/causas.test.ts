@@ -1,30 +1,17 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import request from 'supertest';
 import { crearApp } from '../src/app';
-import { cerrarPool, obtenerPool } from '../src/db';
+import { cerrarPool } from '../src/db';
 import { config } from '../src/config';
 import { armarPagina, desplazamiento } from '../src/comun/paginacion';
 import { esquemaFiltrosCausa } from '../src/modulos/causas/esquemas';
-import { conSesion, iniciarSesion, USUARIOS_DEMO } from './ayudas';
+import { conSesion, iniciarSesion, limpiarDatosDePrueba, PREFIJO_PRUEBA, USUARIOS_DEMO } from './ayudas';
 
 const app = crearApp();
 const hayBase = Boolean(config.urlBaseDatos);
 
-/**
- * Prefijo de las causas que crean las pruebas.
- *
- * En CI la base nace y muere con la corrida, pero en local es la misma que usa
- * el entorno de desarrollo: sin esta limpieza, cada `npm test` dejaría
- * expedientes de prueba mezclados con los datos de demostración.
- */
-const PREFIJO_PRUEBA = 'PRUEBA ';
-
 afterAll(async () => {
-  if (hayBase) {
-    await obtenerPool()
-      .query('DELETE FROM causa WHERE caratula LIKE $1', [`${PREFIJO_PRUEBA}%`])
-      .catch(() => undefined);
-  }
+  if (hayBase) await limpiarDatosDePrueba();
   await cerrarPool();
 });
 
