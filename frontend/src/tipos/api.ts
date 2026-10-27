@@ -106,18 +106,77 @@ export interface MovimientoCausa {
   registrado_por: string | null;
 }
 
-export interface PlazoCausa {
+/* --- Plazos ----------------------------------------------------------------
+   La pestaña del expediente y la agenda muestran el mismo dato, así que
+   comparten el tipo. */
+
+export interface PlazoListado {
   id: string;
+  causa_id: string;
+  caratula: string;
+  numero_expediente: string | null;
   descripcion: string;
   tipo_plazo: string | null;
   articulo_referencia: string | null;
   fecha_notificacion: string;
+  fecha_inicio_computo: string;
   fecha_vencimiento: string;
-  estado: string;
-  computo: string;
+  fecha_vencimiento_original: string;
   cantidad_dias: number;
+  computo: string;
+  estado: string;
   responsable: string | null;
+  responsable_id: string | null;
+  fecha_cumplimiento: string | null;
+  /** Negativo si ya venció. */
   dias_restantes: number | null;
+  suspendido_sin_fin: boolean;
+}
+
+export interface PlazoDetalle extends PlazoListado {
+  tipo_plazo_id: string | null;
+  observaciones: string | null;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface SuspensionPlazo {
+  id: string;
+  fecha_desde: string;
+  fecha_hasta: string | null;
+  motivo: string;
+  registrado_por: string | null;
+}
+
+/** Un día del cómputo: contó, o no contó y por qué. */
+export interface DiaDelComputo {
+  fecha: string;
+  salteadoPor?: 'FIN_DE_SEMANA' | 'INHABIL' | 'SUSPENDIDO';
+  detalle?: string;
+  numero?: number;
+}
+
+export interface ExplicacionComputo {
+  explicacion: string[];
+  dias: DiaDelComputo[];
+  fecha_vencimiento_calculada: string;
+  coincide_con_lo_guardado: boolean;
+}
+
+export interface DetallePlazo {
+  plazo: PlazoDetalle;
+  suspensiones: SuspensionPlazo[];
+  computo: ExplicacionComputo | null;
+  error_computo?: string;
+}
+
+/** Previsualización: lo que devuelve simular antes de guardar. */
+export interface SimulacionPlazo {
+  fecha_inicio_computo: string;
+  fecha_vencimiento: string;
+  explicacion: string[];
+  dias: DiaDelComputo[];
+  corrido_por_inhabil: boolean;
 }
 
 export interface DocumentoCausa {
@@ -242,6 +301,15 @@ export interface Catalogos {
   tiposCausa: OpcionCatalogo[];
   tiposDocumento: OpcionCatalogo[];
   profesionales: OpcionCatalogo[];
+  tiposPlazo: OpcionTipoPlazo[];
+}
+
+/** Regla de plazo del catálogo: el formulario precarga sus valores. */
+export interface OpcionTipoPlazo extends OpcionCatalogo {
+  cantidad_dias: number;
+  computo: string;
+  articulo_referencia: string | null;
+  prorrogable: boolean;
 }
 
 /* --- Personas -------------------------------------------------------------- */

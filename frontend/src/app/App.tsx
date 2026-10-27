@@ -9,6 +9,7 @@ import { PaginaPanel } from '../modulos/panel/PaginaPanel';
 import { PaginaExpedientes } from '../modulos/causas/PaginaExpedientes';
 import { PaginaExpediente } from '../modulos/causas/PaginaExpediente';
 import { PaginaClientes } from '../modulos/personas/PaginaClientes';
+import { PaginaAgenda } from '../modulos/agenda/PaginaAgenda';
 import { PaginaCliente } from '../modulos/personas/PaginaCliente';
 import { PaginaDiagnostico } from '../modulos/diagnostico/PaginaDiagnostico';
 import { ErrorApi } from '../servicios/api';
@@ -50,6 +51,7 @@ export function App() {
                   <Route path="expedientes/:id" element={<PaginaExpediente />} />
                   <Route path="clientes" element={<PaginaClientes />} />
                   <Route path="clientes/:id" element={<PaginaCliente />} />
+                  <Route path="agenda" element={<PaginaAgenda />} />
                   <Route path="diagnostico" element={<PaginaDiagnostico />} />
                 </Route>
               </Route>

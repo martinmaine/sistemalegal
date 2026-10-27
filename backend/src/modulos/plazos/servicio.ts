@@ -1,5 +1,5 @@
 import { armarPagina, type Pagina } from '../../comun/paginacion';
-import { ErrorConflicto, ErrorNoEncontrado, ErrorSolicitud } from '../../comun/errores';
+import { ErrorConflicto, ErrorHttp, ErrorNoEncontrado, ErrorSolicitud } from '../../comun/errores';
 import { computarPlazo, type ResultadoComputo } from './computo';
 import * as repositorio from './repositorio';
 import type {
@@ -137,11 +137,21 @@ export async function obtenerDetalle(id: string): Promise<DetallePlazo> {
   } catch (fallo) {
     // El plazo existe y hay que poder verlo aunque su cómputo no se pueda
     // rehacer; se muestra lo guardado y se dice por qué falta la explicación.
+    //
+    // Solo viaja el mensaje de un ErrorHttp, que son los que escribimos para
+    // que los lea un usuario. Cualquier otra cosa —una caída de la base, por
+    // ejemplo— trae un mensaje pensado para el log, que puede incluir detalles
+    // de la conexión: ese queda en el servidor.
+    if (fallo instanceof ErrorHttp) {
+      return { plazo, suspensiones, computo: null, error_computo: fallo.message };
+    }
+
+    console.error('[plazos] no se pudo rehacer el cómputo de', id, fallo);
     return {
       plazo,
       suspensiones,
       computo: null,
-      error_computo: fallo instanceof Error ? fallo.message : 'No se pudo rehacer el cómputo.',
+      error_computo: 'No se pudo rehacer el cómputo. Volvé a intentarlo en un momento.',
     };
   }
 }

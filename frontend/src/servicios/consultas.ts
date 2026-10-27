@@ -11,11 +11,14 @@ import type {
   MovimientoCausa,
   Pagina,
   Panel,
+  DetallePlazo,
   ParteCausa,
   PersonaDetalle,
   PersonaListada,
-  PlazoCausa,
+  PlazoDetalle,
+  PlazoListado,
   ProfesionalCausa,
+  SimulacionPlazo,
   TareaCausa,
 } from '../tipos/api';
 
@@ -36,6 +39,9 @@ export const claves = {
   listaCausas: (filtros: FiltrosCausa) => ['causas', 'lista', filtros] as const,
   causa: (id: string) => ['causas', 'detalle', id] as const,
   pestanaCausa: (id: string, pestana: string) => ['causas', 'detalle', id, pestana] as const,
+  plazos: ['plazos'] as const,
+  listaPlazos: (filtros: FiltrosPlazo) => ['plazos', 'lista', filtros] as const,
+  plazo: (id: string) => ['plazos', 'detalle', id] as const,
   personas: ['personas'] as const,
   listaPersonas: (filtros: FiltrosPersona) => ['personas', 'lista', filtros] as const,
   persona: (id: string) => ['personas', 'detalle', id] as const,
@@ -131,7 +137,7 @@ export const useMovimientosCausa = (id: string | undefined, activa: boolean) =>
   usePestanaCausa<MovimientoCausa>(id, 'movimientos', activa);
 
 export const usePlazosCausa = (id: string | undefined, activa: boolean) =>
-  usePestanaCausa<PlazoCausa>(id, 'plazos', activa);
+  usePestanaCausa<PlazoListado>(id, 'plazos', activa);
 
 export const useDocumentosCausa = (id: string | undefined, activa: boolean) =>
   usePestanaCausa<DocumentoCausa>(id, 'documentos', activa);
@@ -372,6 +378,183 @@ export function useEliminarPersona() {
     onSuccess: (_resultado, id) => {
       cliente.removeQueries({ queryKey: claves.persona(id) });
       void cliente.invalidateQueries({ queryKey: claves.personas });
+    },
+  });
+}
+
+/* --- Plazos ----------------------------------------------------------------
+   Todo lo que toca un plazo invalida además el expediente y el panel: el
+   detalle muestra cuántos plazos pendientes tiene y el inicio los cuenta. */
+
+export interface FiltrosPlazo {
+  pagina: number;
+  tamano: number;
+  desde?: string;
+  hasta?: string;
+  estado?: string;
+  responsable?: string;
+  causa?: string;
+  vigencia: 'todos' | 'abiertos' | 'cerrados';
+  orden?: 'fecha_vencimiento' | 'creado_en' | 'caratula';
+  direccion?: 'asc' | 'desc';
+}
+
+export function usePlazos(filtros: FiltrosPlazo, habilitada = true) {
+  return useQuery({
+    queryKey: claves.listaPlazos(filtros),
+    queryFn: () =>
+      api.obtener<Pagina<PlazoListado>>(
+        `/api/plazos${consulta({
+          pagina: filtros.pagina,
+          tamano: filtros.tamano,
+          desde: filtros.desde,
+          hasta: filtros.hasta,
+          estado: filtros.estado,
+          responsable: filtros.responsable,
+          causa: filtros.causa,
+          vigencia: filtros.vigencia,
+          orden: filtros.orden,
+          direccion: filtros.direccion,
+        })}`,
+      ),
+    enabled: habilitada,
+    placeholderData: (previo) => previo,
+  });
+}
+
+export function usePlazo(id: string | undefined) {
+  return useQuery({
+    queryKey: claves.plazo(id ?? ''),
+    queryFn: () => api.obtener<DetallePlazo>(`/api/plazos/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+export interface DatosPlazo {
+  descripcion: string;
+  tipo_plazo_id?: string;
+  fecha_notificacion: string;
+  fecha_inicio_computo?: string;
+  cantidad_dias: number;
+  computo: 'HABIL' | 'CORRIDO';
+  responsable_id?: string;
+  observaciones?: string;
+}
+
+/** Previsualización del cómputo. No guarda nada: alimenta el formulario. */
+export function useSimularPlazo(causaId: string) {
+  return useMutation({
+    mutationFn: (datos: Omit<DatosPlazo, 'descripcion' | 'responsable_id' | 'observaciones'>) =>
+      api.enviar<SimulacionPlazo>(`/api/causas/${causaId}/plazos/simular`, datos),
+  });
+}
+
+/** Lo que hay que refrescar después de tocar un plazo. */
+function invalidarPlazo(cliente: ReturnType<typeof useQueryClient>, causaId?: string) {
+  void cliente.invalidateQueries({ queryKey: claves.plazos });
+  void cliente.invalidateQueries({ queryKey: claves.panel });
+  if (causaId) void cliente.invalidateQueries({ queryKey: claves.causa(causaId) });
+}
+
+export function useCrearPlazo(causaId: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (datos: DatosPlazo) =>
+      api.enviar<{ plazo: PlazoDetalle }>(`/api/causas/${causaId}/plazos`, datos).then((r) => r.plazo),
+    onSuccess: () => invalidarPlazo(cliente, causaId),
+  });
+}
+
+export function useEditarPlazo(id: string, causaId: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (datos: DatosPlazo) =>
+      api.reemplazar<{ plazo: PlazoDetalle }>(`/api/plazos/${id}`, datos).then((r) => r.plazo),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: claves.plazo(id) });
+      invalidarPlazo(cliente, causaId);
+    },
+  });
+}
+
+/**
+ * Acciones de estado: cumplir, reabrir, suspender y reanudar.
+ *
+ * Cada una es su propia ruta y no un campo de la edición, porque cada una
+ * registra además cuándo y por qué, y tiene reglas sobre desde qué estado se
+ * puede llegar a ella.
+ */
+function useAccionPlazo<T>(id: string, causaId: string, accion: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (datos: T) =>
+      api.enviar<{ plazo: PlazoDetalle }>(`/api/plazos/${id}/${accion}`, datos ?? {}).then((r) => r.plazo),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: claves.plazo(id) });
+      invalidarPlazo(cliente, causaId);
+    },
+  });
+}
+
+export const useCumplirPlazo = (id: string, causaId: string) =>
+  useAccionPlazo<{ fecha_cumplimiento?: string; observaciones?: string }>(id, causaId, 'cumplir');
+
+export const useReabrirPlazo = (id: string, causaId: string) =>
+  useAccionPlazo<undefined>(id, causaId, 'reabrir');
+
+export const useSuspenderPlazo = (id: string, causaId: string) =>
+  useAccionPlazo<{ fecha_desde: string; fecha_hasta?: string; motivo: string }>(
+    id,
+    causaId,
+    'suspender',
+  );
+
+export const useReanudarPlazo = (id: string, causaId: string) =>
+  useAccionPlazo<{ fecha_hasta: string }>(id, causaId, 'reanudar');
+
+export function useEliminarPlazo(causaId: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.eliminar<{ plazo: PlazoDetalle }>(`/api/plazos/${id}`),
+    onSuccess: (_resultado, id) => {
+      cliente.removeQueries({ queryKey: claves.plazo(id) });
+      invalidarPlazo(cliente, causaId);
+    },
+  });
+}
+
+/* --- Movimientos procesales ------------------------------------------------ */
+
+export interface DatosMovimiento {
+  fecha: string;
+  tipo?: string;
+  descripcion: string;
+}
+
+export function useRegistrarMovimiento(causaId: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (datos: DatosMovimiento) =>
+      api.enviar<{ movimiento: MovimientoCausa }>(`/api/causas/${causaId}/movimientos`, datos),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: claves.causa(causaId) });
+    },
+  });
+}
+
+export function useBorrarMovimiento(causaId: string) {
+  const cliente = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.eliminar<{ movimiento: MovimientoCausa }>(`/api/causas/${causaId}/movimientos/${id}`),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: claves.causa(causaId) });
     },
   });
 }

@@ -1241,3 +1241,83 @@ a.lista__item:hover {
   white-space: nowrap;
   text-align: right;
 }
+
+/* Explicación del cómputo de plazos ----------------------------------------
+   Es la pieza que permite verificar una fecha de vencimiento, así que se lee
+   como un razonamiento numerado y no como un bloque de texto. */
+.computo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+
+.computo__pasos {
+  margin: 0;
+  padding-left: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.computo__paso {
+  font-size: var(--texto-sm);
+  color: var(--texto);
+  line-height: 1.55;
+}
+
+.computo__detalle {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-md);
+}
+
+/* Un día que no cuenta se distingue por el texto de la columna "Por qué", no
+   solo por el tono: el color no puede ser la única señal. */
+.computo__fila--salteada {
+  color: var(--texto-tenue);
+  background: var(--superficie-sutil);
+}
+
+.computo__aviso {
+  display: flex;
+  gap: var(--esp-2);
+  align-items: flex-start;
+  margin: 0;
+  padding: var(--esp-3);
+  background: var(--info-fondo);
+  border: 1px solid var(--info-borde);
+  border-radius: var(--radio-md);
+  font-size: var(--texto-xs);
+  color: var(--texto-tenue);
+  line-height: 1.5;
+}
+
+/* Previsualización del vencimiento dentro del formulario de plazo -----------
+   Es el resultado, no un campo más: va destacado y con el fondo de la marca
+   para que se lea antes de apretar Guardar. */
+.previsualizacion {
+  padding: var(--esp-4);
+  background: var(--marca-50);
+  border: 1px solid var(--marca-200);
+  border-radius: var(--radio-md);
+}
+
+.previsualizacion__titular {
+  display: flex;
+  gap: var(--esp-2);
+  align-items: center;
+  margin: 0 0 var(--esp-4);
+  font-size: var(--texto-base);
+  color: var(--marca-800);
+}
+
+.previsualizacion__titular strong {
+  font-weight: 650;
+}
+
+.previsualizacion__espera {
+  margin: 0;
+  font-size: var(--texto-sm);
+  color: var(--texto-tenue);
+}

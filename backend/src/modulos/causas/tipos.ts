@@ -67,19 +67,8 @@ export interface MovimientoCausa {
   registrado_por: string | null;
 }
 
-export interface PlazoCausa {
-  id: string;
-  descripcion: string;
-  tipo_plazo: string | null;
-  articulo_referencia: string | null;
-  fecha_notificacion: string;
-  fecha_vencimiento: string;
-  estado: string;
-  computo: string;
-  cantidad_dias: number;
-  responsable: string | null;
-  dias_restantes: number | null;
-}
+// Los plazos viajan con el tipo PlazoListado del módulo de plazos: la pestaña
+// del expediente y la agenda muestran el mismo dato.
 
 export interface DocumentoCausa {
   id: string;

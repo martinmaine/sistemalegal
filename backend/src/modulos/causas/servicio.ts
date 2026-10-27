@@ -1,6 +1,8 @@
 import { armarPagina, type Pagina } from '../../comun/paginacion';
 import { ErrorConflicto, ErrorNoEncontrado, ErrorSolicitud } from '../../comun/errores';
 import * as repositorio from './repositorio';
+import * as plazosRepositorio from '../plazos/repositorio';
+import type { PlazoListado } from '../plazos/tipos';
 import type {
   DatosAgregarParte,
   DatosAgregarProfesional,
@@ -15,7 +17,6 @@ import type {
   DocumentoCausa,
   MovimientoCausa,
   ParteCausa,
-  PlazoCausa,
   ProfesionalCausa,
   TareaCausa,
 } from './tipos';
@@ -65,9 +66,23 @@ export async function movimientos(id: string): Promise<MovimientoCausa[]> {
   return repositorio.movimientosDe(id);
 }
 
-export async function plazos(id: string): Promise<PlazoCausa[]> {
+/**
+ * Plazos del expediente.
+ *
+ * Delega en el módulo de plazos en lugar de tener su propia consulta: la
+ * pestaña del expediente y la agenda muestran lo mismo, y con dos consultas
+ * distintas terminarían mostrando columnas distintas del mismo plazo.
+ */
+export async function plazos(id: string): Promise<PlazoListado[]> {
   await exigirCausa(id);
-  return repositorio.plazosDe(id);
+  return plazosRepositorio.listar({
+    causa: id,
+    vigencia: 'todos',
+    pagina: 1,
+    tamano: 200,
+    orden: 'fecha_vencimiento',
+    direccion: 'asc',
+  });
 }
 
 export async function documentos(id: string): Promise<DocumentoCausa[]> {

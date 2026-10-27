@@ -15,7 +15,6 @@ import type {
   DocumentoCausa,
   MovimientoCausa,
   ParteCausa,
-  PlazoCausa,
   ProfesionalCausa,
   TareaCausa,
 } from './tipos';
@@ -283,31 +282,6 @@ export async function movimientosDe(causaId: string): Promise<MovimientoCausa[]>
        LEFT JOIN usuario u ON u.id = m.registrado_por
       WHERE m.causa_id = $1
       ORDER BY m.fecha DESC, m.creado_en DESC`,
-    [causaId],
-  );
-  return rows;
-}
-
-export async function plazosDe(causaId: string): Promise<PlazoCausa[]> {
-  const { rows } = await obtenerPool().query<PlazoCausa>(
-    `SELECT p.id,
-            p.descripcion,
-            tp.nombre AS tipo_plazo,
-            tp.articulo_referencia,
-            to_char(p.fecha_notificacion, 'YYYY-MM-DD') AS fecha_notificacion,
-            to_char(p.fecha_vencimiento,  'YYYY-MM-DD') AS fecha_vencimiento,
-            p.estado,
-            p.computo,
-            p.cantidad_dias,
-            ${NOMBRE_USUARIO} AS responsable,
-            CASE WHEN p.estado IN ('PENDIENTE', 'SUSPENDIDO')
-                 THEN (p.fecha_vencimiento - CURRENT_DATE)
-            END AS dias_restantes
-       FROM plazo p
-       LEFT JOIN tipo_plazo tp ON tp.id = p.tipo_plazo_id
-       LEFT JOIN usuario    u  ON u.id  = p.responsable_id
-      WHERE p.causa_id = $1
-      ORDER BY p.fecha_vencimiento`,
     [causaId],
   );
   return rows;

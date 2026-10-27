@@ -9,10 +9,12 @@ análisis de textos legales y como apoyo a la búsqueda de jurisprudencia.
 - **Arquitectura:** preparada para configurar otras provincias (días inhábiles y formatos de
   tribunales configurables); el MVP se valida solo con Córdoba.
 - **Estado:** en desarrollo — Versión 0.1.0 (MVP). Esquema de base de datos y módulos
-  definidos (2.ª entrega). **Fases 1 y 2 de producto completas**: autenticación con roles
-  y permisos verificados en el servidor; panel de inicio, expedientes y agenda de
-  clientes; y la gestión completa de expedientes, personas, partes y equipo asignado
-  ([Fase 1](docs/fase-1-fundaciones.md) · [Fase 2](docs/fase-2-experiencia-central.md)).
+  definidos (2.ª entrega). **Fases 1 a 3 de producto completas**: autenticación con roles
+  y permisos verificados en el servidor; gestión de expedientes, personas, partes y
+  equipo; y el **cómputo de plazos procesales** con la explicación de cómo llegó a cada
+  fecha ([Fase 1](docs/fase-1-fundaciones.md) ·
+  [Fase 2](docs/fase-2-experiencia-central.md) ·
+  [Fase 3](docs/fase-3-computo-de-plazos.md)).
 
 > **Trabajo Final Integrador** — Tecnicatura Universitaria en Programación a Distancia.
 >
@@ -112,12 +114,18 @@ sistemalegal/
 └── render.yaml            Configuración del servicio en Render
 ```
 
-> **Fases 1 y 2.** El backend expone autenticación, panel, catálogos y la gestión
-> completa de causas y personas; el frontend tiene su sistema de diseño, su estructura de
-> navegación y las pantallas de trabajo diario funcionando contra la API. El detalle de
-> qué quedó hecho, qué decisiones se tomaron y qué falta está en
-> [`docs/fase-1-fundaciones.md`](docs/fase-1-fundaciones.md) y
-> [`docs/fase-2-experiencia-central.md`](docs/fase-2-experiencia-central.md).
+> **Fases 1 a 3.** El backend expone autenticación, panel, catálogos, la gestión completa
+> de causas y personas, y el motor de cómputo de plazos; el frontend tiene su sistema de
+> diseño, su estructura de navegación y las pantallas de trabajo diario funcionando contra
+> la API. El detalle de qué quedó hecho, qué decisiones se tomaron y qué falta está en
+> [`docs/fase-1-fundaciones.md`](docs/fase-1-fundaciones.md),
+> [`docs/fase-2-experiencia-central.md`](docs/fase-2-experiencia-central.md) y
+> [`docs/fase-3-computo-de-plazos.md`](docs/fase-3-computo-de-plazos.md).
+>
+> El cómputo de plazos calcula sobre el calendario de días inhábiles cargado en la base y
+> explica cómo llegó a cada fecha. **Las reglas jurídicas del catálogo todavía no están
+> validadas** y los artículos de referencia están vacíos: es una ayuda para no perder un
+> vencimiento, no un dictamen.
 
 ---
 

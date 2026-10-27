@@ -36,6 +36,7 @@ export const NAVEGACION: ItemNavegacion[] = [
   { ruta: '/', texto: 'Inicio', icono: LayoutDashboard },
   { ruta: '/expedientes', texto: 'Expedientes', icono: FolderOpen, permiso: 'causa.ver', prefijo: true },
   { ruta: '/clientes', texto: 'Clientes y partes', icono: Users, permiso: 'persona.ver', prefijo: true },
+  { ruta: '/agenda', texto: 'Agenda y plazos', icono: CalendarClock, permiso: 'plazo.ver', prefijo: true },
 ];
 
 /**
@@ -47,7 +48,6 @@ export const NAVEGACION: ItemNavegacion[] = [
  * no existe. Un ítem inerte y rotulado como en desarrollo no engaña a nadie.
  */
 export const NAVEGACION_PENDIENTE: { texto: string; icono: LucideIcon }[] = [
-  { texto: 'Agenda y plazos', icono: CalendarClock },
   { texto: 'Documentos', icono: FileText },
   { texto: 'Tareas', icono: ListChecks },
   { texto: 'Honorarios y costas', icono: Banknote },

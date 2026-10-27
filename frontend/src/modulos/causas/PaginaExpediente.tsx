@@ -37,16 +37,16 @@ import { DialogoConfirmar } from '../../componentes/ui/DialogoConfirmar';
 import { DialogoExpediente } from './DialogoExpediente';
 import { DialogoAgregarParte } from './DialogoAgregarParte';
 import { DialogoAsignarProfesional } from './DialogoAsignarProfesional';
+import { DialogoMovimiento } from './DialogoMovimiento';
+import { PanelPlazos } from '../plazos/PanelPlazos';
 import {
   EstadoCausa,
-  EstadoPlazo,
   EstadoTarea,
   Etiqueta,
   Prioridad,
-  Vencimiento,
 } from '../../componentes/ui/Etiqueta';
 import { Cargando, ErrorCarga, EsqueletoLista, Vacio } from '../../componentes/ui/Estados';
-import { enDias, fecha, fechaHora, importe, legible, tamanoArchivo } from '../../lib/formato';
+import { fecha, fechaHora, importe, legible, tamanoArchivo } from '../../lib/formato';
 
 /**
  * Detalle del expediente.
@@ -93,6 +93,7 @@ export function PaginaExpediente() {
   const [editando, setEditando] = useState(false);
   const [agregandoParte, setAgregandoParte] = useState(false);
   const [asignando, setAsignando] = useState(false);
+  const [registrandoMovimiento, setRegistrandoMovimiento] = useState(false);
   const [dandoDeBaja, setDandoDeBaja] = useState(false);
   const [parteAQuitar, setParteAQuitar] = useState<ParteCausa>();
   const [profesionalAQuitar, setProfesionalAQuitar] = useState<ProfesionalCausa>();
@@ -440,7 +441,22 @@ export function PaginaExpediente() {
         )}
 
         {activa === 'actividad' && (
-          <Tarjeta titulo="Movimientos procesales" descripcion="Historial del expediente, del más reciente al más antiguo.">
+          <Tarjeta
+            titulo="Movimientos procesales"
+            descripcion="Historial del expediente, del más reciente al más antiguo."
+            accion={
+              puede('causa.editar') && (
+                <Boton
+                  variante="primario"
+                  pequeno
+                  icono={<Plus size={15} aria-hidden />}
+                  onClick={() => setRegistrandoMovimiento(true)}
+                >
+                  Registrar movimiento
+                </Boton>
+              )
+            }
+          >
             {movimientos.isPending && <EsqueletoLista />}
             {movimientos.isError && (
               <ErrorCarga error={movimientos.error} reintentar={() => void movimientos.refetch()} />
@@ -576,74 +592,15 @@ export function PaginaExpediente() {
           </Tarjeta>
         )}
 
-        {activa === 'plazos' && (
-          <Tarjeta
-            titulo="Plazos procesales"
-            descripcion="El cálculo de vencimientos se incorpora en la próxima fase; estos plazos se muestran tal como están cargados."
-            sinRelleno
-          >
-            {plazos.isPending && <EsqueletoLista />}
-            {plazos.isError && <ErrorCarga error={plazos.error} reintentar={() => void plazos.refetch()} />}
-            {plazos.data?.length === 0 && (
-              <Vacio
-                titulo="Sin plazos registrados"
-                texto="Los plazos de este expediente aparecen acá con su vencimiento y responsable."
-                icono={<AlarmClock size={20} aria-hidden />}
-              />
-            )}
-            {plazos.data && plazos.data.length > 0 && (
-              <div className="tabla-envoltorio">
-                <table className="tabla">
-                  <thead>
-                    <tr>
-                      <th scope="col">Plazo</th>
-                      <th scope="col" className="columna--opcional">
-                        Cómputo
-                      </th>
-                      <th scope="col">Vencimiento</th>
-                      <th scope="col">Estado</th>
-                      <th scope="col" className="columna--secundaria">
-                        Responsable
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {plazos.data.map((plazo) => (
-                      <tr key={plazo.id}>
-                        <td>
-                          <div className="tabla__principal">{plazo.descripcion}</div>
-                          {plazo.tipo_plazo && (
-                            <div className="tabla__secundario">
-                              {plazo.tipo_plazo}
-                              {plazo.articulo_referencia && ` · ${plazo.articulo_referencia}`}
-                            </div>
-                          )}
-                        </td>
-                        <td className="columna--opcional tabla__secundario">
-                          {plazo.cantidad_dias} días {plazo.computo === 'HABIL' ? 'hábiles' : 'corridos'}
-                          <div>desde {fecha(plazo.fecha_notificacion)}</div>
-                        </td>
-                        <td>
-                          <div className="tabla__numero">{fecha(plazo.fecha_vencimiento)}</div>
-                          {plazo.dias_restantes !== null && (
-                            <div style={{ marginTop: 4 }}>
-                              <Vencimiento dias={plazo.dias_restantes} texto={enDias(plazo.dias_restantes)} />
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <EstadoPlazo estado={plazo.estado} />
-                        </td>
-                        <td className="columna--secundaria tabla__secundario">
-                          <Dato>{plazo.responsable}</Dato>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Tarjeta>
+        {activa === 'plazos' && id && (
+          <PanelPlazos
+            causaId={id}
+            caratula={causa.caratula}
+            plazos={plazos.data ?? []}
+            cargando={plazos.isPending}
+            error={plazos.isError ? plazos.error : undefined}
+            reintentar={() => void plazos.refetch()}
+          />
         )}
 
         {activa === 'documentos' && (
@@ -762,6 +719,15 @@ export function PaginaExpediente() {
           causaId={id}
           caratula={causa.caratula}
           yaAsignados={profesionales}
+        />
+      )}
+
+      {registrandoMovimiento && id && (
+        <DialogoMovimiento
+          abierto
+          alCerrar={() => setRegistrandoMovimiento(false)}
+          causaId={id}
+          caratula={causa.caratula}
         />
       )}
 
