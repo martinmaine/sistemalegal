@@ -4,7 +4,7 @@ import { FilterX, FolderOpen, FolderPlus } from 'lucide-react';
 import { useCatalogos, useCausas } from '../../servicios/consultas';
 import { useSesion } from '../auth/ContextoSesion';
 import { useFiltrosCausa } from './useFiltrosCausa';
-import { DialogoNuevoExpediente } from './DialogoNuevoExpediente';
+import { DialogoExpediente } from './DialogoExpediente';
 import { CabeceraPagina } from '../../componentes/ui/CabeceraPagina';
 import { Tarjeta } from '../../componentes/ui/Tarjeta';
 import { Boton } from '../../componentes/ui/Boton';
@@ -336,7 +336,7 @@ export function PaginaExpedientes() {
       </Tarjeta>
 
       {puedeCrear && (
-        <DialogoNuevoExpediente abierto={dialogoAbierto} alCerrar={() => setDialogoAbierto(false)} />
+        <DialogoExpediente abierto={dialogoAbierto} alCerrar={() => setDialogoAbierto(false)} />
       )}
     </>
   );

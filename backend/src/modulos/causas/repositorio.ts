@@ -178,6 +178,12 @@ const SQL_DETALLE = `
   SELECT c.id,
          c.numero_expediente,
          c.caratula,
+         -- Los ids además de los nombres: el formulario de edición precarga
+         -- los desplegables con ellos, y por nombre tendría que adivinar.
+         c.fuero_id,
+         c.estado_causa_id,
+         c.tribunal_id,
+         c.tipo_causa_id,
          to_char(c.fecha_inicio, 'YYYY-MM-DD')  AS fecha_inicio,
          to_char(c.fecha_cierre, 'YYYY-MM-DD')  AS fecha_cierre,
          ec.nombre  AS estado,

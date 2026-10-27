@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { SubmitEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { LogIn, Scale } from 'lucide-react';
 import { useSesion } from './ContextoSesion';
@@ -40,7 +41,7 @@ export function PaginaAcceso() {
     return <Navigate to="/" replace />;
   }
 
-  async function enviar(evento: React.FormEvent) {
+  async function enviar(evento: SubmitEvent) {
     evento.preventDefault();
     setError(undefined);
     setErroresCampo({});

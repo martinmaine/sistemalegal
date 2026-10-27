@@ -8,11 +8,11 @@ análisis de textos legales y como apoyo a la búsqueda de jurisprudencia.
 - **Mercado inicial:** Provincia de Córdoba, Argentina.
 - **Arquitectura:** preparada para configurar otras provincias (días inhábiles y formatos de
   tribunales configurables); el MVP se valida solo con Córdoba.
-- **Estado:** en desarrollo — Versión 0.1.0 (MVP, Fase 1). Esquema de base de datos
-  y módulos definidos (2.ª entrega). **Fase 1 de producto completa**: autenticación con
-  roles y permisos verificados en el servidor, panel de inicio, expedientes con su
-  detalle y agenda de clientes, sobre datos reales de la base
-  ([informe de la fase](docs/fase-1-fundaciones.md)).
+- **Estado:** en desarrollo — Versión 0.1.0 (MVP). Esquema de base de datos y módulos
+  definidos (2.ª entrega). **Fases 1 y 2 de producto completas**: autenticación con roles
+  y permisos verificados en el servidor; panel de inicio, expedientes y agenda de
+  clientes; y la gestión completa de expedientes, personas, partes y equipo asignado
+  ([Fase 1](docs/fase-1-fundaciones.md) · [Fase 2](docs/fase-2-experiencia-central.md)).
 
 > **Trabajo Final Integrador** — Tecnicatura Universitaria en Programación a Distancia.
 >
@@ -112,11 +112,12 @@ sistemalegal/
 └── render.yaml            Configuración del servicio en Render
 ```
 
-> **Fase 1.** El backend expone autenticación, panel, causas, personas y catálogos;
-> el frontend tiene su sistema de diseño, su estructura de navegación y las tres
-> pantallas centrales funcionando contra la API. El detalle de qué quedó hecho, qué
-> decisiones se tomaron y qué falta está en
-> [`docs/fase-1-fundaciones.md`](docs/fase-1-fundaciones.md).
+> **Fases 1 y 2.** El backend expone autenticación, panel, catálogos y la gestión
+> completa de causas y personas; el frontend tiene su sistema de diseño, su estructura de
+> navegación y las pantallas de trabajo diario funcionando contra la API. El detalle de
+> qué quedó hecho, qué decisiones se tomaron y qué falta está en
+> [`docs/fase-1-fundaciones.md`](docs/fase-1-fundaciones.md) y
+> [`docs/fase-2-experiencia-central.md`](docs/fase-2-experiencia-central.md).
 
 ---
 

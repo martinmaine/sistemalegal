@@ -1,12 +1,19 @@
-import { Link, useParams } from 'react-router-dom';
-import { Building2, FolderOpen, User } from 'lucide-react';
-import { usePersona } from '../../servicios/consultas';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Building2, FolderOpen, Pencil, Trash2, User } from 'lucide-react';
+import { useEliminarPersona, usePersona } from '../../servicios/consultas';
+import { caracterLegible, tipoPersonaLegible } from '../../lib/vocabulario';
+import { useSesion } from '../auth/ContextoSesion';
 import { CabeceraPagina } from '../../componentes/ui/CabeceraPagina';
 import { Tarjeta } from '../../componentes/ui/Tarjeta';
+import { Boton } from '../../componentes/ui/Boton';
 import { Dato } from '../../componentes/ui/Tabla';
 import { EstadoCausa, Etiqueta } from '../../componentes/ui/Etiqueta';
 import { Cargando, ErrorCarga, Vacio } from '../../componentes/ui/Estados';
-import { fecha, fechaHora, legible } from '../../lib/formato';
+import { useAvisos } from '../../componentes/ui/Avisos';
+import { DialogoConfirmar } from '../../componentes/ui/DialogoConfirmar';
+import { DialogoPersona } from './DialogoPersona';
+import { fecha, fechaHora } from '../../lib/formato';
 
 /**
  * Ficha de una persona.
@@ -18,7 +25,31 @@ import { fecha, fechaHora, legible } from '../../lib/formato';
 
 export function PaginaCliente() {
   const { id } = useParams<{ id: string }>();
+  const navegar = useNavigate();
+  const { puede } = useSesion();
+  const { avisar } = useAvisos();
   const { data, isPending, isError, error, refetch } = usePersona(id);
+
+  const [editando, setEditando] = useState(false);
+  const [dandoDeBaja, setDandoDeBaja] = useState(false);
+  const [errorBaja, setErrorBaja] = useState<string>();
+  const eliminar = useEliminarPersona();
+
+  async function confirmarBaja() {
+    if (!id) return;
+    setErrorBaja(undefined);
+
+    try {
+      await eliminar.mutateAsync(id);
+      avisar('Persona dada de baja de la agenda.');
+      setDandoDeBaja(false);
+      navegar('/clientes');
+    } catch (fallo) {
+      // Puede estar bloqueada por intervenir en una causa en trámite: ese
+      // mensaje explica qué hacer y hay que mostrarlo, no tragarlo.
+      setErrorBaja(fallo instanceof Error ? fallo.message : 'No se pudo dar de baja.');
+    }
+  }
 
   if (isPending) return <Cargando texto="Cargando la ficha…" />;
 
@@ -50,9 +81,30 @@ export function PaginaCliente() {
         }
         descripcion={
           <span className="fila fila--envuelve" style={{ gap: 'var(--esp-2)', marginTop: 'var(--esp-2)' }}>
-            <Etiqueta tono="neutral">{esJuridica ? 'Persona jurídica' : 'Persona física'}</Etiqueta>
+            <Etiqueta tono="neutral">{tipoPersonaLegible(persona.tipo_persona)}</Etiqueta>
             {persona.es_cliente && <Etiqueta tono="marca">Cliente del estudio</Etiqueta>}
           </span>
+        }
+        acciones={
+          <>
+            {puede('persona.editar') && (
+              <Boton icono={<Pencil size={15} aria-hidden />} onClick={() => setEditando(true)}>
+                Editar
+              </Boton>
+            )}
+            {puede('persona.eliminar') && (
+              <Boton
+                variante="sutil"
+                icono={<Trash2 size={15} aria-hidden />}
+                onClick={() => {
+                  setErrorBaja(undefined);
+                  setDandoDeBaja(true);
+                }}
+              >
+                Dar de baja
+              </Boton>
+            )}
+          </>
         }
       />
 
@@ -94,7 +146,7 @@ export function PaginaCliente() {
                         </td>
                         <td>
                           <span className="fila" style={{ gap: 'var(--esp-2)' }}>
-                            <Etiqueta tono="neutral">{legible(causa.caracter)}</Etiqueta>
+                            <Etiqueta tono="neutral">{caracterLegible(causa.caracter)}</Etiqueta>
                             {causa.es_cliente && <Etiqueta tono="marca">Cliente</Etiqueta>}
                           </span>
                         </td>
@@ -178,6 +230,26 @@ export function PaginaCliente() {
           </div>
         </Tarjeta>
       </div>
+
+      {editando && (
+        <DialogoPersona abierto alCerrar={() => setEditando(false)} persona={persona} />
+      )}
+
+      <DialogoConfirmar
+        abierto={dandoDeBaja}
+        titulo="Dar de baja de la agenda"
+        mensaje={
+          <>
+            <strong>{persona.nombre_completo}</strong> deja de aparecer en la agenda. No se borra:
+            su ficha se conserva y sigue nombrada en los expedientes cerrados donde intervino.
+          </>
+        }
+        textoConfirmar="Dar de baja"
+        cargando={eliminar.isPending}
+        error={errorBaja}
+        alConfirmar={() => void confirmarBaja()}
+        alCerrar={() => setDandoDeBaja(false)}
+      />
     </>
   );
 }

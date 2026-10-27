@@ -1,7 +1,9 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Building2, FilterX, User, Users } from 'lucide-react';
+import { Building2, FilterX, Plus, User, Users } from 'lucide-react';
 import { usePersonas } from '../../servicios/consultas';
+import { useSesion } from '../auth/ContextoSesion';
+import { DialogoPersona } from './DialogoPersona';
 import type { FiltrosPersona } from '../../servicios/consultas';
 import { CabeceraPagina } from '../../componentes/ui/CabeceraPagina';
 import { Tarjeta } from '../../componentes/ui/Tarjeta';
@@ -27,6 +29,8 @@ const TAMANO_PAGINA = 20;
 export function PaginaClientes() {
   const [parametros, setParametros] = useSearchParams();
   const navegar = useNavigate();
+  const { puede } = useSesion();
+  const [altaAbierta, setAltaAbierta] = useState(false);
 
   const filtros = useMemo<FiltrosPersona>(
     () => ({
@@ -66,6 +70,17 @@ export function PaginaClientes() {
       <CabeceraPagina
         titulo="Clientes y partes"
         descripcion="Agenda única de personas vinculadas a los expedientes del estudio."
+        acciones={
+          puede('persona.crear') && (
+            <Boton
+              variante="primario"
+              icono={<Plus size={16} aria-hidden />}
+              onClick={() => setAltaAbierta(true)}
+            >
+              Nueva persona
+            </Boton>
+          )
+        }
       />
 
       <Tarjeta sinRelleno>
@@ -219,6 +234,14 @@ export function PaginaClientes() {
           </div>
         )}
       </Tarjeta>
+
+      {/* Al guardar se va a la ficha: lo siguiente suele ser completarla o
+          vincularla a un expediente. */}
+      <DialogoPersona
+        abierto={altaAbierta}
+        alCerrar={() => setAltaAbierta(false)}
+        alGuardar={(persona) => navegar(`/clientes/${persona.id}`)}
+      />
     </>
   );
 }

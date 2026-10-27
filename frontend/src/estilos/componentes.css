@@ -1139,3 +1139,105 @@ a.lista__item:hover {
     animation-duration: 2.4s;
   }
 }
+
+/* Casilla de verificación --------------------------------------------------
+   El control arriba a la izquierda y el texto al lado: al marcarla, la
+   etiqueta explica la consecuencia, no el nombre del campo. */
+.casilla {
+  display: flex;
+  gap: var(--esp-3);
+  align-items: flex-start;
+}
+
+.casilla__control {
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--marca-600);
+  cursor: pointer;
+}
+
+.casilla__etiqueta {
+  display: block;
+  font-size: var(--texto-sm);
+  font-weight: 500;
+  color: var(--texto);
+  cursor: pointer;
+}
+
+.casilla__control:disabled,
+.casilla__control:disabled + div .casilla__etiqueta {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Selección dentro de un formulario ----------------------------------------
+   Lo elegido se ve como un bloque cerrado, no como un campo editable: ya no
+   se escribe, se cambia. */
+.seleccionado {
+  display: flex;
+  gap: var(--esp-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--esp-3) var(--esp-4);
+  background: var(--marca-50);
+  border: 1px solid var(--marca-200);
+  border-radius: var(--radio-md);
+}
+
+.seleccionado__cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.seleccionado__nombre {
+  font-weight: 600;
+  color: var(--texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Lista encuadrada: resultados de búsqueda dentro de un formulario. */
+.lista--encuadrada {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-md);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.lista--encuadrada > li + li .lista__item {
+  border-top: 1px solid var(--borde);
+}
+
+/* Un item de lista que además es botón: hereda la tipografía en lugar de la
+   del navegador, y ocupa todo el ancho disponible. */
+.lista__item--boton {
+  width: 100%;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lista__item--boton:hover {
+  background: var(--superficie-sutil);
+}
+
+.lista__item--boton:focus-visible {
+  outline: none;
+  box-shadow: inset var(--anillo-foco);
+}
+
+/* Columna de acciones de una tabla: angosta y alineada a la derecha, para que
+   los botones no compitan con el contenido. */
+.columna--acciones {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}

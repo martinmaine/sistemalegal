@@ -195,3 +195,44 @@ export function FiltroSelect({
     </select>
   );
 }
+
+/**
+ * Casilla de verificación.
+ *
+ * No usa el Envoltorio porque en una casilla la etiqueta va después del
+ * control y describe lo que pasa al marcarla, no el nombre de un dato.
+ */
+export function CampoCasilla({
+  etiqueta,
+  ayuda,
+  ...resto
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'id' | 'type'> & {
+  etiqueta: string;
+  ayuda?: string;
+}) {
+  const base = useId();
+  const idControl = `${base}-control`;
+  const idAyuda = `${base}-ayuda`;
+
+  return (
+    <div className="casilla">
+      <input
+        type="checkbox"
+        id={idControl}
+        className="casilla__control"
+        aria-describedby={ayuda ? idAyuda : undefined}
+        {...resto}
+      />
+      <div>
+        <label className="casilla__etiqueta" htmlFor={idControl}>
+          {etiqueta}
+        </label>
+        {ayuda && (
+          <p className="campo__ayuda" id={idAyuda}>
+            {ayuda}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}

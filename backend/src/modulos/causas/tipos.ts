@@ -18,6 +18,11 @@ export interface CausaListada {
 }
 
 export interface CausaDetalle extends CausaListada {
+  /** Ids de los catálogos, para precargar el formulario de edición. */
+  fuero_id: string;
+  estado_causa_id: string;
+  tribunal_id: string | null;
+  tipo_causa_id: string | null;
   tipo_causa: string | null;
   jurisdiccion: string | null;
   tribunal_domicilio: string | null;
