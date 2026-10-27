@@ -5,6 +5,7 @@ import type {
   DatosAgregarParte,
   DatosAgregarProfesional,
   DatosCrearCausa,
+  DatosCrearMovimiento,
   DatosEditarCausa,
   FiltrosCausa,
 } from './esquemas';
@@ -201,4 +202,36 @@ export async function quitarProfesional(causaId: string, vinculoId: string): Pro
 
   await repositorio.quitarProfesional(causaId, vinculoId);
   return profesional;
+}
+
+export async function agregarMovimiento(
+  causaId: string,
+  datos: DatosCrearMovimiento,
+  usuarioId: string,
+): Promise<MovimientoCausa> {
+  await exigirCausa(causaId);
+
+  const id = await repositorio.agregarMovimiento(causaId, datos, usuarioId);
+  const movimiento = await repositorio.buscarMovimiento(causaId, id);
+  if (!movimiento) throw new ErrorNoEncontrado('El movimiento se guardó pero no se pudo leer.');
+  return movimiento;
+}
+
+export async function quitarMovimiento(
+  causaId: string,
+  movimientoId: string,
+): Promise<MovimientoCausa> {
+  await exigirCausa(causaId);
+
+  const movimiento = await repositorio.buscarMovimiento(causaId, movimientoId);
+  if (!movimiento) throw new ErrorNoEncontrado('Ese movimiento no existe en el expediente.');
+
+  if (movimiento.origen !== 'MANUAL') {
+    // Un movimiento importado refleja lo que publicó el tribunal; borrarlo a
+    // mano dejaría el expediente diciendo algo distinto de la fuente.
+    throw new ErrorConflicto('Solo se pueden borrar los movimientos cargados a mano.');
+  }
+
+  await repositorio.quitarMovimiento(causaId, movimientoId);
+  return movimiento;
 }

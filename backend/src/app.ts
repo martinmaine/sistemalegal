@@ -6,6 +6,7 @@ import { verificarBase } from './db';
 import { requiereSesion } from './middlewares/autenticacion';
 import { rutasAuth } from './modulos/auth/rutas';
 import { rutasCausas } from './modulos/causas/rutas';
+import { rutasPlazos, rutasPlazosDeCausa } from './modulos/plazos/rutas';
 import { rutasCatalogos } from './modulos/catalogos/rutas';
 import { rutasPanel } from './modulos/panel/rutas';
 import { rutasPersonas } from './modulos/personas/rutas';
@@ -70,6 +71,10 @@ export function crearApp(): Express {
   app.use('/api', requiereSesion);
   app.use('/api/panel', rutasPanel);
   app.use('/api/causas', rutasCausas);
+  // Los plazos de un expediente cuelgan de el, pero viven en su propio modulo:
+  // el motor de computo no tiene por que estar dentro de causas.
+  app.use('/api/causas/:id', rutasPlazosDeCausa);
+  app.use('/api/plazos', rutasPlazos);
   app.use('/api/personas', rutasPersonas);
   app.use('/api/catalogos', rutasCatalogos);
 

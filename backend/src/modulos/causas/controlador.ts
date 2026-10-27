@@ -9,6 +9,7 @@ import {
   type DatosAgregarParte,
   type DatosAgregarProfesional,
   type DatosCrearCausa,
+  type DatosCrearMovimiento,
   type DatosEditarCausa,
   type FiltrosCausa,
 } from './esquemas';
@@ -199,6 +200,50 @@ export async function deleteProfesional(req: Request, res: Response, next: NextF
     });
 
     res.json({ profesional });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postMovimiento(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const causaId = idDeRuta(req);
+    const movimiento = await servicio.agregarMovimiento(
+      causaId,
+      req.body as DatosCrearMovimiento,
+      req.sesion!.id,
+    );
+
+    await registrar(req, {
+      entidad: 'movimiento_causa',
+      entidadId: movimiento.id,
+      accion: 'CREAR',
+      datosDespues: { causa_id: causaId, ...movimiento },
+    });
+
+    res.status(201).json({ movimiento });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteMovimiento(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { causaId, vinculoId } = idsDeVinculo(req);
+    const movimiento = await servicio.quitarMovimiento(causaId, vinculoId);
+
+    await registrar(req, {
+      entidad: 'movimiento_causa',
+      entidadId: movimiento.id,
+      accion: 'ELIMINAR',
+      datosAntes: { causa_id: causaId, ...movimiento },
+    });
+
+    res.json({ movimiento });
   } catch (error) {
     next(error);
   }

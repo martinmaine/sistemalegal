@@ -18,6 +18,14 @@ export interface OpcionCatalogo {
   es_final?: boolean;
 }
 
+/** Regla de plazo del catálogo: el formulario precarga sus valores. */
+export interface OpcionTipoPlazo extends OpcionCatalogo {
+  cantidad_dias: number;
+  computo: string;
+  articulo_referencia: string | null;
+  prorrogable: boolean;
+}
+
 export interface Catalogos {
   fueros: OpcionCatalogo[];
   estados: OpcionCatalogo[];
@@ -25,12 +33,14 @@ export interface Catalogos {
   tiposCausa: OpcionCatalogo[];
   tiposDocumento: OpcionCatalogo[];
   profesionales: OpcionCatalogo[];
+  tiposPlazo: OpcionTipoPlazo[];
 }
 
 export async function obtenerTodos(): Promise<Catalogos> {
   const pool = obtenerPool();
 
-  const [fueros, estados, tribunales, tiposCausa, tiposDocumento, profesionales] = await Promise.all([
+  const [fueros, estados, tribunales, tiposCausa, tiposDocumento, profesionales, tiposPlazo] =
+    await Promise.all([
     pool.query<OpcionCatalogo>(
       `SELECT id, nombre, codigo FROM fuero WHERE activo ORDER BY nombre`,
     ),
@@ -60,6 +70,13 @@ export async function obtenerTodos(): Promise<Catalogos> {
         WHERE activo
         ORDER BY apellido, nombre`,
     ),
+    pool.query<OpcionTipoPlazo>(
+      `SELECT id, nombre, codigo, fuero_id, cantidad_dias, computo,
+              articulo_referencia, prorrogable
+         FROM tipo_plazo
+        WHERE activo
+        ORDER BY nombre`,
+    ),
   ]);
 
   return {
@@ -69,5 +86,6 @@ export async function obtenerTodos(): Promise<Catalogos> {
     tiposCausa: tiposCausa.rows,
     tiposDocumento: tiposDocumento.rows,
     profesionales: profesionales.rows,
+    tiposPlazo: tiposPlazo.rows,
   };
 }

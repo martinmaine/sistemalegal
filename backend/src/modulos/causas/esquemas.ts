@@ -121,3 +121,24 @@ export const esquemaIdVinculo = z.object({
   id: z.uuid('Identificador inválido.'),
   vinculoId: z.uuid('Identificador inválido.'),
 });
+
+/**
+ * Alta de un movimiento procesal.
+ *
+ * `origen` no se recibe del cliente: lo fija el controlador según cómo entró
+ * el movimiento. Hoy todo es carga manual; cuando exista importación, será esa
+ * ruta la que marque IMPORTACION, no un campo que el navegador pueda mandar.
+ */
+export const esquemaCrearMovimiento = z.object({
+  fecha: z.iso.date('Indicá la fecha del movimiento.'),
+  tipo: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .or(z.literal(''))
+    .transform((v) => v || undefined),
+  descripcion: textoObligatorio(5000, 'Describí el movimiento.'),
+});
+
+export type DatosCrearMovimiento = z.infer<typeof esquemaCrearMovimiento>;

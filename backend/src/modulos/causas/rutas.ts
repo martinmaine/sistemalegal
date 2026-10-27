@@ -5,11 +5,13 @@ import {
   esquemaAgregarParte,
   esquemaAgregarProfesional,
   esquemaCrearCausa,
+  esquemaCrearMovimiento,
   esquemaEditarCausa,
   esquemaFiltrosCausa,
 } from './esquemas';
 import {
   deleteCausa,
+  deleteMovimiento,
   deleteParte,
   deleteProfesional,
   getCausa,
@@ -19,6 +21,7 @@ import {
   getPlazos,
   getTareas,
   postCausa,
+  postMovimiento,
   postParte,
   postProfesional,
   putCausa,
@@ -62,3 +65,14 @@ rutasCausas.post(
   postProfesional,
 );
 rutasCausas.delete('/:id/profesionales/:vinculoId', requierePermiso('causa.editar'), deleteProfesional);
+
+// Registrar un movimiento procesal es actualizar el expediente: no hay un
+// permiso 'movimiento.*' en la base, y crear uno sin que el estudio lo pida
+// seria inventar una restriccion que el dominio no tiene.
+rutasCausas.post(
+  '/:id/movimientos',
+  requierePermiso('causa.editar'),
+  validarCuerpo(esquemaCrearMovimiento),
+  postMovimiento,
+);
+rutasCausas.delete('/:id/movimientos/:vinculoId', requierePermiso('causa.editar'), deleteMovimiento);

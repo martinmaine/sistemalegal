@@ -4,6 +4,7 @@ import type {
   DatosAgregarParte,
   DatosAgregarProfesional,
   DatosCrearCausa,
+  DatosCrearMovimiento,
   DatosEditarCausa,
   FiltrosCausa,
   OrdenCausa,
@@ -631,4 +632,55 @@ export async function contarProfesionales(causaId: string): Promise<number> {
     [causaId],
   );
   return Number.parseInt(rows[0]?.total ?? '0', 10);
+}
+
+export async function agregarMovimiento(
+  causaId: string,
+  datos: DatosCrearMovimiento,
+  registradoPor: string,
+): Promise<string> {
+  const { rows } = await obtenerPool().query<{ id: string }>(
+    `INSERT INTO movimiento_causa (causa_id, fecha, tipo, descripcion, origen, registrado_por)
+     VALUES ($1, $2, $3, $4, 'MANUAL', $5)
+     RETURNING id`,
+    [causaId, datos.fecha, datos.tipo ?? null, datos.descripcion, registradoPor],
+  );
+
+  const id = rows[0]?.id;
+  if (!id) throw new Error('El alta del movimiento no devolvió un identificador');
+  return id;
+}
+
+export async function buscarMovimiento(
+  causaId: string,
+  movimientoId: string,
+): Promise<MovimientoCausa | undefined> {
+  const { rows } = await obtenerPool().query<MovimientoCausa>(
+    `SELECT m.id,
+            to_char(m.fecha, 'YYYY-MM-DD') AS fecha,
+            m.tipo,
+            m.descripcion,
+            m.origen,
+            ${NOMBRE_USUARIO} AS registrado_por
+       FROM movimiento_causa m
+       LEFT JOIN usuario u ON u.id = m.registrado_por
+      WHERE m.causa_id = $1 AND m.id = $2`,
+    [causaId, movimientoId],
+  );
+  return rows[0];
+}
+
+/**
+ * Borra un movimiento.
+ *
+ * Un movimiento cargado con la fecha equivocada no es historia que haya que
+ * conservar, es un error de carga. La auditoría guarda qué decía antes de
+ * borrarse, que es lo que permite rastrearlo.
+ */
+export async function quitarMovimiento(causaId: string, movimientoId: string): Promise<boolean> {
+  const { rowCount } = await obtenerPool().query(
+    'DELETE FROM movimiento_causa WHERE causa_id = $1 AND id = $2',
+    [causaId, movimientoId],
+  );
+  return (rowCount ?? 0) > 0;
 }
