@@ -29,5 +29,12 @@ services:
       # Dominio de producción de Vercel.
       - key: CORS_ORIGIN
         sync: false
+      # Secreto con el que se firman los tokens de acceso. OBLIGATORIO: con
+      # NODE_ENV=production el servicio se niega a arrancar si falta o tiene menos
+      # de 32 caracteres, a propósito, para no firmar sesiones con un secreto
+      # efímero que cambia en cada reinicio. Generarlo con:
+      #   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+      - key: JWT_SECRET
+        sync: false
       - key: CORS_PREFIJO_PREVIEW
         value: sistemalegal

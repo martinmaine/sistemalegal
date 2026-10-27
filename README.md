@@ -14,7 +14,8 @@ análisis de textos legales y como apoyo a la búsqueda de jurisprudencia.
   equipo; y el **cómputo de plazos procesales** con la explicación de cómo llegó a cada
   fecha ([Fase 1](docs/fase-1-fundaciones.md) ·
   [Fase 2](docs/fase-2-experiencia-central.md) ·
-  [Fase 3](docs/fase-3-computo-de-plazos.md)).
+  [Fase 3](docs/fase-3-computo-de-plazos.md)). **Para retomar el trabajo, empezar por
+  [`docs/traspaso-y-pendientes.md`](docs/traspaso-y-pendientes.md).**
 
 > **Trabajo Final Integrador** — Tecnicatura Universitaria en Programación a Distancia.
 >
