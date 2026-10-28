@@ -1,0 +1,177 @@
+/* =============================================================================
+   Tokens del sistema de diseño — SistemaLegal
+   =============================================================================
+
+   Todo el aspecto de la aplicación sale de estas variables. Ningún componente
+   escribe un color, un radio o un espaciado a mano.
+
+   Por qué variables CSS y no una librería de utilidades: cada estudio tiene que
+   poder cambiar su color de marca sin recompilar. Con custom properties, la
+   personalización es asignar valores nuevos en :root desde la configuración
+   guardada en la base (ver lib/tema.ts). Esa es la razón, no una preferencia.
+
+   La paleta base es verde petróleo sobre fondos claros.
+   ============================================================================= */
+
+:root {
+  /* --- Marca -------------------------------------------------------------
+     --marca-600 es el color principal: navegación activa, botones primarios,
+     enlaces. El resto de la escala se deriva de él y se recalcula cuando un
+     estudio configura su propio color. */
+  --marca-50: #edf4f2;
+  --marca-100: #d7e8e3;
+  --marca-200: #b0d0c9;
+  --marca-300: #80b2a8;
+  --marca-400: #4f8d81;
+  --marca-500: #2f6e62;
+  --marca-600: #245a50;
+  --marca-700: #1d4a42;
+  --marca-800: #173b35;
+  --marca-900: #112c28;
+
+  /* --- Neutros -----------------------------------------------------------
+     Con una pizca de verde, para que convivan con la marca sin verse grises
+     sucios al lado. */
+  --neutro-0: #ffffff;
+  --neutro-25: #fafbfb;
+  --neutro-50: #f4f6f6;
+  --neutro-100: #eceff0;
+  --neutro-200: #e1e7e6;
+  --neutro-300: #cbd3d2;
+  --neutro-400: #9aa6a4;
+  --neutro-500: #6b7a77;
+  --neutro-600: #52605d;
+  --neutro-700: #3a4543;
+  --neutro-800: #242d2b;
+  --neutro-900: #141a19;
+
+  /* --- Superficies y texto ---------------------------------------------- */
+  --fondo: var(--neutro-50);
+  --superficie: var(--neutro-0);
+  --superficie-sutil: var(--neutro-25);
+  --superficie-hover: var(--neutro-50);
+  --borde: var(--neutro-200);
+  --borde-fuerte: var(--neutro-300);
+
+  --texto: var(--neutro-900);
+  --texto-suave: var(--neutro-600);
+  --texto-tenue: var(--neutro-500);
+  --texto-sobre-marca: #ffffff;
+
+  /* --- Semánticos --------------------------------------------------------
+     Cada estado trae su color de texto, su fondo y su borde. Los tres se
+     eligieron para que el texto sobre el fondo supere 4.5:1 de contraste. */
+  --exito: #15803d;
+  --exito-fondo: #e7f6ec;
+  --exito-borde: #bfe5cd;
+
+  --alerta: #96610a;
+  --alerta-fondo: #fdf3e2;
+  --alerta-borde: #f2dcb4;
+
+  --peligro: #b42318;
+  --peligro-fondo: #fdecea;
+  --peligro-borde: #f7cfca;
+
+  --info: #175cd3;
+  --info-fondo: #e8f1fd;
+  --info-borde: #c6ddf9;
+
+  --neutral-fondo: var(--neutro-100);
+  --neutral-borde: var(--neutro-200);
+
+  /* --- Tipografía --------------------------------------------------------
+     Pila del sistema, sin fuentes externas. Dos motivos: el entorno local con
+     docker compose tiene que funcionar sin conexión (es el respaldo de la
+     defensa oral, según docs/arquitectura.md), y una fuente remota agrega una
+     petición bloqueante al primer render. Segoe UI en Windows y SF Pro en Mac
+     son tipografías de interfaz de primer nivel. */
+  --fuente: 'Segoe UI Variable Text', 'Segoe UI', -apple-system, BlinkMacSystemFont,
+    'Inter', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --fuente-titulos: 'Segoe UI Variable Display', 'Segoe UI', -apple-system,
+    BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  /* Para números que tienen que alinearse en columna: importes, expedientes. */
+  --fuente-mono: 'Cascadia Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* 15px de base en lugar de los 14 habituales en paneles B2B: el sistema lo
+     usan profesionales de todas las edades y la legibilidad pesa más que meter
+     una fila extra en pantalla. */
+  --texto-xs: 0.75rem;
+  --texto-sm: 0.8125rem;
+  --texto-base: 0.9375rem;
+  --texto-md: 1rem;
+  --texto-lg: 1.125rem;
+  --texto-xl: 1.3125rem;
+  --texto-2xl: 1.625rem;
+  --texto-3xl: 2rem;
+
+  --peso-normal: 400;
+  --peso-medio: 500;
+  --peso-semi: 600;
+  --peso-fuerte: 700;
+
+  --interlineado-ajustado: 1.25;
+  --interlineado: 1.5;
+  --interlineado-amplio: 1.65;
+
+  /* --- Espaciado — múltiplos de 4 --------------------------------------- */
+  --esp-1: 0.25rem;
+  --esp-2: 0.5rem;
+  --esp-3: 0.75rem;
+  --esp-4: 1rem;
+  --esp-5: 1.25rem;
+  --esp-6: 1.5rem;
+  --esp-7: 1.75rem;
+  --esp-8: 2rem;
+  --esp-10: 2.5rem;
+  --esp-12: 3rem;
+  --esp-16: 4rem;
+
+  /* --- Radios ------------------------------------------------------------ */
+  --radio-sm: 6px;
+  --radio: 8px;
+  --radio-md: 10px;
+  --radio-lg: 14px;
+  --radio-xl: 18px;
+  --radio-pastilla: 999px;
+
+  /* --- Sombras -----------------------------------------------------------
+     Suaves y de poco radio: la jerarquía la marcan los bordes y el fondo, no
+     la profundidad. */
+  --sombra-sm: 0 1px 2px rgba(20, 26, 25, 0.05);
+  --sombra: 0 1px 3px rgba(20, 26, 25, 0.06), 0 1px 2px rgba(20, 26, 25, 0.04);
+  --sombra-md: 0 4px 12px rgba(20, 26, 25, 0.08);
+  --sombra-lg: 0 12px 32px rgba(20, 26, 25, 0.12);
+
+  /* --- Foco --------------------------------------------------------------
+     Un anillo visible, no el outline por defecto del navegador: la navegación
+     por teclado es un requisito, no un extra. */
+  --anillo-foco: 0 0 0 3px var(--marca-200);
+  --anillo-foco-peligro: 0 0 0 3px #f7cfca;
+
+  /* --- Medidas de la estructura ----------------------------------------- */
+  --ancho-barra-lateral: 248px;
+  --ancho-barra-lateral-angosta: 68px;
+  --alto-barra-superior: 60px;
+  --ancho-contenido-max: 1480px;
+
+  /* --- Transiciones ------------------------------------------------------
+     Cortas y solo en propiedades baratas. Nada decorativo: la animación acá
+     sirve para que un cambio de estado se note, no para lucirse. */
+  --transicion-rapida: 120ms ease;
+  --transicion: 160ms ease;
+
+  --capa-barra-lateral: 30;
+  --capa-barra-superior: 20;
+  --capa-panel: 50;
+  --capa-modal: 60;
+  --capa-aviso: 70;
+}
+
+/* Quien prefiere menos movimiento no recibe ninguno. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transicion-rapida: 0ms;
+    --transicion: 0ms;
+  }
+}

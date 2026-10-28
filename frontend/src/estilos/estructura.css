@@ -1,0 +1,622 @@
+/* =============================================================================
+   Estructura de la aplicación — shell, barra lateral, barra superior, página
+   =============================================================================
+   Desktop primero, porque el trabajo diario de un estudio se hace en una
+   computadora, pero utilizable completo en tablet y teléfono.
+   ============================================================================= */
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--ancho-barra-lateral) 1fr;
+  min-height: 100vh;
+  transition: grid-template-columns var(--transicion);
+}
+
+.shell--contraida {
+  grid-template-columns: var(--ancho-barra-lateral-angosta) 1fr;
+}
+
+/* ---------------------------------------------------------------------------
+   Barra lateral
+   Clara, no oscura: es la dirección visual elegida para el producto.
+   --------------------------------------------------------------------------- */
+.barra-lateral {
+  position: sticky;
+  top: 0;
+  z-index: var(--capa-barra-lateral);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--superficie);
+  border-right: 1px solid var(--borde);
+}
+
+.barra-lateral__marca {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  height: var(--alto-barra-superior);
+  padding: 0 var(--esp-4);
+  flex-shrink: 0;
+  color: var(--texto);
+  overflow: hidden;
+}
+
+.barra-lateral__marca:hover {
+  text-decoration: none;
+}
+
+.barra-lateral__logo {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radio-md);
+  background: var(--marca-600);
+  color: var(--texto-sobre-marca);
+  flex-shrink: 0;
+}
+
+.barra-lateral__identidad {
+  min-width: 0;
+}
+
+.barra-lateral__nombre {
+  font-family: var(--fuente-titulos);
+  font-size: var(--texto-md);
+  font-weight: var(--peso-semi);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barra-lateral__estudio {
+  font-size: var(--texto-xs);
+  color: var(--texto-tenue);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barra-lateral__navegacion {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--esp-3) var(--esp-3) var(--esp-5);
+}
+
+.barra-lateral__grupo + .barra-lateral__grupo {
+  margin-top: var(--esp-5);
+}
+
+.barra-lateral__titulo-grupo {
+  padding: 0 var(--esp-3) var(--esp-2);
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semi);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--neutro-400);
+}
+
+.navegacion__enlace {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  padding: var(--esp-2) var(--esp-3);
+  margin-bottom: 2px;
+  border-radius: var(--radio);
+  font-size: var(--texto-base);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+  transition: background-color var(--transicion-rapida), color var(--transicion-rapida);
+}
+
+.navegacion__enlace:hover {
+  background: var(--neutro-100);
+  color: var(--texto);
+  text-decoration: none;
+}
+
+/* La sección activa se marca en verde petróleo sólido: es la señal de
+   ubicación más importante de la interfaz. */
+.navegacion__enlace--activo,
+.navegacion__enlace--activo:hover {
+  background: var(--marca-600);
+  color: var(--texto-sobre-marca);
+}
+
+.navegacion__enlace svg {
+  flex-shrink: 0;
+}
+
+.navegacion__texto {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navegacion__contador {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: var(--radio-pastilla);
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semi);
+}
+
+.navegacion__enlace--activo .navegacion__contador {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--texto-sobre-marca);
+}
+
+.barra-lateral__pie {
+  padding: var(--esp-3);
+  border-top: 1px solid var(--borde);
+  flex-shrink: 0;
+}
+
+.barra-lateral__creditos {
+  padding: var(--esp-2) var(--esp-3) 0;
+  font-size: var(--texto-xs);
+  color: var(--neutro-400);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Barra lateral contraída ----------------------------------------------
+   Solo iconos. El nombre viaja en el title y en aria-label, así que el enlace
+   sigue siendo comprensible para un lector de pantalla. */
+.shell--contraida .navegacion__texto,
+.shell--contraida .barra-lateral__identidad,
+.shell--contraida .barra-lateral__titulo-grupo,
+.shell--contraida .barra-lateral__creditos,
+.shell--contraida .navegacion__contador {
+  display: none;
+}
+
+.shell--contraida .navegacion__enlace {
+  justify-content: center;
+  padding: var(--esp-2);
+}
+
+.shell--contraida .barra-lateral__marca {
+  justify-content: center;
+  padding: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Columna principal
+   --------------------------------------------------------------------------- */
+.principal {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.barra-superior {
+  position: sticky;
+  top: 0;
+  z-index: var(--capa-barra-superior);
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+  height: var(--alto-barra-superior);
+  padding: 0 var(--esp-6);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--borde);
+  flex-shrink: 0;
+}
+
+.barra-superior__contexto {
+  min-width: 0;
+}
+
+.barra-superior__titulo {
+  font-size: var(--texto-md);
+  font-weight: var(--peso-semi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barra-superior__busqueda {
+  flex: 1;
+  max-width: 460px;
+  margin-left: auto;
+}
+
+.barra-superior__acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  margin-left: auto;
+}
+
+.barra-superior__busqueda + .barra-superior__acciones {
+  margin-left: 0;
+}
+
+/* Pista del atajo de teclado dentro del buscador. */
+.atajo {
+  position: absolute;
+  right: var(--esp-2);
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--esp-2);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-sm);
+  background: var(--neutro-50);
+  font-family: var(--fuente-mono);
+  font-size: var(--texto-xs);
+  color: var(--texto-tenue);
+  pointer-events: none;
+}
+
+.boton-menu {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Menú de usuario
+   --------------------------------------------------------------------------- */
+.menu-usuario {
+  position: relative;
+}
+
+.menu-usuario__disparador {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  padding: var(--esp-1) var(--esp-2) var(--esp-1) var(--esp-1);
+  border-radius: var(--radio-pastilla);
+  transition: background-color var(--transicion-rapida);
+}
+
+.menu-usuario__disparador:hover {
+  background: var(--neutro-100);
+}
+
+/* Columna, no línea: nombre y rol son <span>, que por defecto van en línea, y
+   sin esto se leían pegados ("Laura GestiónAdministrador"). */
+.menu-usuario__datos {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.menu-usuario__nombre {
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-semi);
+}
+
+.menu-usuario__rol {
+  font-size: var(--texto-xs);
+  color: var(--texto-tenue);
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--esp-2));
+  z-index: var(--capa-panel);
+  min-width: 232px;
+  padding: var(--esp-2);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-md);
+}
+
+.menu__cabecera {
+  padding: var(--esp-2) var(--esp-3) var(--esp-3);
+  border-bottom: 1px solid var(--borde);
+  margin-bottom: var(--esp-2);
+}
+
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  width: 100%;
+  padding: var(--esp-2) var(--esp-3);
+  border-radius: var(--radio-sm);
+  font-size: var(--texto-base);
+  color: var(--texto-suave);
+  text-align: left;
+}
+
+.menu__item:hover {
+  background: var(--neutro-100);
+  color: var(--texto);
+  text-decoration: none;
+}
+
+.menu__item--peligro:hover {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+}
+
+/* ---------------------------------------------------------------------------
+   Página
+   --------------------------------------------------------------------------- */
+.pagina {
+  flex: 1;
+  width: 100%;
+  max-width: var(--ancho-contenido-max);
+  margin: 0 auto;
+  padding: var(--esp-6);
+}
+
+.pagina__cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--esp-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--esp-6);
+}
+
+.pagina__titulo {
+  font-size: var(--texto-2xl);
+}
+
+.pagina__descripcion {
+  margin-top: var(--esp-1);
+  color: var(--texto-suave);
+}
+
+.pagina__acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  flex-wrap: wrap;
+}
+
+.migas {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--esp-1);
+  margin-bottom: var(--esp-3);
+  font-size: var(--texto-sm);
+  color: var(--texto-tenue);
+}
+
+.migas a {
+  color: var(--texto-tenue);
+}
+
+.migas a:hover {
+  color: var(--texto);
+}
+
+/* ---------------------------------------------------------------------------
+   Rejillas del panel
+   --------------------------------------------------------------------------- */
+.rejilla-indicadores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--esp-4);
+}
+
+.rejilla-panel {
+  display: grid;
+  /* Dos columnas asimétricas: lo urgente (plazos) ocupa más que lo contextual. */
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: var(--esp-5);
+}
+
+.rejilla-detalle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--esp-5);
+  align-items: start;
+}
+
+/* ---------------------------------------------------------------------------
+   Acceso — pantalla de inicio de sesión
+   --------------------------------------------------------------------------- */
+.acceso {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr;
+  place-items: center;
+  padding: var(--esp-6);
+  background: var(--fondo);
+}
+
+.acceso__panel {
+  width: 100%;
+  max-width: 408px;
+}
+
+.acceso__marca {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-3);
+  margin-bottom: var(--esp-6);
+}
+
+.acceso__logo {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radio-md);
+  background: var(--marca-600);
+  color: var(--texto-sobre-marca);
+}
+
+.acceso__nombre {
+  font-family: var(--fuente-titulos);
+  font-size: var(--texto-xl);
+  font-weight: var(--peso-semi);
+  letter-spacing: -0.015em;
+}
+
+.acceso__creditos {
+  margin-top: var(--esp-6);
+  text-align: center;
+  font-size: var(--texto-sm);
+  color: var(--texto-tenue);
+}
+
+.acceso__demo {
+  margin-top: var(--esp-4);
+  padding: var(--esp-3) var(--esp-4);
+  border: 1px dashed var(--borde-fuerte);
+  border-radius: var(--radio-md);
+  background: var(--superficie-sutil);
+  font-size: var(--texto-sm);
+  color: var(--texto-suave);
+}
+
+/* =============================================================================
+   Adaptación a pantallas chicas
+   ============================================================================= */
+
+/* Tablet: el panel pasa a una columna. */
+@media (max-width: 1180px) {
+  .rejilla-panel,
+  .rejilla-detalle {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Teléfono y tablet angosta: la barra lateral se convierte en un cajón. */
+@media (max-width: 900px) {
+  .shell,
+  .shell--contraida {
+    grid-template-columns: 1fr;
+  }
+
+  .barra-lateral {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(282px, 84vw);
+    transform: translateX(-100%);
+    transition: transform var(--transicion);
+    box-shadow: var(--sombra-lg);
+  }
+
+  .barra-lateral--abierta {
+    transform: translateX(0);
+  }
+
+  /* Al abrir el cajón, el contenido de atrás se atenúa y deja de recibir clics. */
+  .velo-lateral {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--capa-barra-lateral) - 1);
+    background: rgba(20, 26, 25, 0.4);
+  }
+
+  /* En el cajón siempre se ven los textos, aunque en escritorio esté contraída. */
+  .shell--contraida .navegacion__texto,
+  .shell--contraida .barra-lateral__identidad,
+  .shell--contraida .barra-lateral__titulo-grupo,
+  .shell--contraida .barra-lateral__creditos,
+  .shell--contraida .navegacion__contador {
+    display: initial;
+  }
+
+  .shell--contraida .navegacion__enlace {
+    justify-content: flex-start;
+    padding: var(--esp-2) var(--esp-3);
+  }
+
+  .shell--contraida .barra-lateral__marca {
+    justify-content: flex-start;
+    padding: 0 var(--esp-4);
+  }
+
+  .boton-menu {
+    display: inline-flex;
+  }
+
+  .barra-superior {
+    padding: 0 var(--esp-4);
+  }
+
+  /* La búsqueda global no entra en la barra: se abre desde su propio botón. */
+  .barra-superior__busqueda {
+    display: none;
+  }
+
+  .pagina {
+    padding: var(--esp-4);
+  }
+
+  .menu-usuario__datos {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .pagina__cabecera {
+    margin-bottom: var(--esp-5);
+  }
+
+  .pagina__titulo {
+    font-size: var(--texto-xl);
+  }
+
+  .pagina__acciones {
+    width: 100%;
+  }
+
+  .pagina__acciones .boton {
+    flex: 1;
+  }
+
+  .barra-filtros {
+    padding: var(--esp-3) var(--esp-4);
+  }
+
+  .barra-filtros__buscador {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  /* Los filtros pasan a ocupar el ancho completo, uno por línea: apilados a
+     medio ancho quedan ilegibles y con un blanco de toque incómodo. */
+  .barra-filtros__grupo {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .barra-filtros select.campo__control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .barra-filtros__resumen {
+    margin-left: 0;
+  }
+
+  .tarjeta__cabecera,
+  .tarjeta__cuerpo {
+    padding-left: var(--esp-4);
+    padding-right: var(--esp-4);
+  }
+
+  .lista__item {
+    padding-left: var(--esp-4);
+    padding-right: var(--esp-4);
+  }
+
+  .modal__cabecera,
+  .modal__cuerpo,
+  .modal__pie {
+    padding-left: var(--esp-4);
+    padding-right: var(--esp-4);
+  }
+}

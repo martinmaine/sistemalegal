@@ -127,12 +127,17 @@ tarea usa el suyo.
 2. **New > Blueprint**, elegir el repositorio. Render lee
    [`render.yaml`](../render.yaml) y propone el servicio `sistemalegal-api` con el
    *root directory*, el *build command* y el *health check* ya resueltos.
-3. Cargar las dos variables que el blueprint marca como `sync: false`:
+3. Cargar las tres variables que el blueprint marca como `sync: false`:
 
    | Variable | Valor |
    |---|---|
    | `DATABASE_URL` | la cadena del **pooler en modo transacción** (puerto `6543`), con `sslmode=require` |
    | `CORS_ORIGIN` | provisorio `http://localhost:5173`; se corrige en el paso 3.4 |
+   | `JWT_SECRET` | un secreto aleatorio de al menos 32 caracteres (comando abajo). **Sin él el servicio no arranca.** |
+
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+   ```
 
 4. Esperar el despliegue y comprobar `https://sistemalegal-api.onrender.com/health`.
    Tiene que responder `"base": "conectada"`. Si dice `sin-conexion`, el campo
@@ -179,7 +184,11 @@ sin valores reales.
 | `CORS_PREFIJO_PREVIEW` | backend | Prefijo para autorizar los previews de Vercel. |
 | `LIMITE_LISTADOS` | backend | Tope de filas por listado. |
 | `VITE_API_URL` | frontend | URL de la API vista desde el navegador. |
-| `JWT_SECRET` | backend | Reservada: entra con el módulo de autenticación. |
+| `JWT_SECRET` | backend | **Obligatoria en producción.** Firma los tokens de acceso; el servicio no arranca si falta o tiene menos de 32 caracteres. |
+| `MINUTOS_ACCESS_TOKEN` | backend | Vida del token de acceso. Por defecto 15. |
+| `DIAS_REFRESH_TOKEN` | backend | Vida de la sesión renovable. Por defecto 7. |
+| `INTENTOS_LOGIN` | backend | Intentos de inicio de sesión por ventana. Por defecto 10. |
+| `MINUTOS_VENTANA_LOGIN` | backend | Ventana del límite de intentos. Por defecto 15. |
 | `CLAUDE_API_KEY` | backend | Reservada: entra con el módulo de IA. Opcional. |
 
 ---

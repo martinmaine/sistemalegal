@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ConnectionOptions } from 'node:tls';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import { config } from './config';
 
 /**
@@ -30,6 +30,31 @@ export function obtenerPool(): Pool {
     });
   }
   return pool;
+}
+
+/**
+ * Ejecuta varias consultas en una sola transacción.
+ *
+ * Hace falta cuando un alta toca más de una tabla: crear una causa y asignarle
+ * su profesional responsable tiene que ser todo o nada, porque una causa sin
+ * responsable no aparecería en "mis causas" y nadie se enteraría de que quedó
+ * a medias.
+ *
+ * El cliente se devuelve al pool pase lo que pase, incluso si el ROLLBACK falla.
+ */
+export async function enTransaccion<T>(trabajo: (cliente: PoolClient) => Promise<T>): Promise<T> {
+  const cliente = await obtenerPool().connect();
+  try {
+    await cliente.query('BEGIN');
+    const resultado = await trabajo(cliente);
+    await cliente.query('COMMIT');
+    return resultado;
+  } catch (error) {
+    await cliente.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    cliente.release();
+  }
 }
 
 export async function cerrarPool(): Promise<void> {

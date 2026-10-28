@@ -1,0 +1,166 @@
+/* =============================================================================
+   Base — normalización y elementos nativos
+   ============================================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--fuente);
+  font-size: var(--texto-base);
+  line-height: var(--interlineado);
+  color: var(--texto);
+  background: var(--fondo);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--fuente-titulos);
+  line-height: var(--interlineado-ajustado);
+  color: var(--texto);
+  /* Los títulos de interfaz llevan el tracking un poco cerrado: a tamaños
+     grandes la pila del sistema se ve suelta. */
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: var(--texto-2xl);
+  font-weight: var(--peso-semi);
+}
+h2 {
+  font-size: var(--texto-lg);
+  font-weight: var(--peso-semi);
+}
+h3 {
+  font-size: var(--texto-md);
+  font-weight: var(--peso-semi);
+}
+h4 {
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semi);
+}
+
+a {
+  color: var(--marca-600);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+  padding: 0;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   Foco visible en todo lo que se puede enfocar.
+   Se usa :focus-visible y no :focus para no dibujar el anillo en un clic con
+   el mouse, pero sí siempre que se navega con el teclado.
+   --------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--marca-600);
+  outline-offset: 2px;
+  border-radius: var(--radio-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   Salto al contenido: primer elemento enfocable de la página, oculto hasta
+   que recibe foco. Evita que quien navega con teclado recorra toda la barra
+   lateral en cada pantalla.
+   --------------------------------------------------------------------------- */
+.salto-contenido {
+  position: absolute;
+  left: var(--esp-4);
+  top: var(--esp-4);
+  z-index: var(--capa-aviso);
+  padding: var(--esp-2) var(--esp-4);
+  background: var(--marca-600);
+  color: var(--texto-sobre-marca);
+  border-radius: var(--radio);
+  font-weight: var(--peso-medio);
+  transform: translateY(-200%);
+  transition: transform var(--transicion);
+}
+
+.salto-contenido:focus {
+  transform: translateY(0);
+}
+
+/* Solo para lectores de pantalla. */
+.solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+::selection {
+  background: var(--marca-100);
+  color: var(--marca-900);
+}
+
+/* Barras de desplazamiento discretas, al tono de la interfaz. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--neutro-300) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--neutro-300);
+  border-radius: var(--radio-pastilla);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neutro-400);
+  background-clip: content-box;
+}
